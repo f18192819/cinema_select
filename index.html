@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartCinema 智能影院选座系统</title>
+  <link
+    rel="icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2303111f'/%3E%3Cpath d='M16 22h32v6H16zm4 10h24v6H20zm6 10h12v6H26z' fill='%2354d2ff'/%3E%3C/svg%3E"
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Noto+Sans+SC:wght@400;500;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <section class="auth-screen" id="authScreen">
+      <header class="hero hero--auth">
+        <div class="hero__copy">
+          <p class="eyebrow">SMART SCREENING OS</p>
+          <h1>SmartCinema 智能影院选座系统</h1>
+          <p class="hero__lead">
+            先登录，再进入选座控制台。登录与注册现在独立为单独入口页，成功后自动跳转到选座界面。
+          </p>
+        </div>
+        <div class="hero__metrics">
+          <article class="metric-card">
+            <span class="metric-card__label">影厅数量</span>
+            <strong class="metric-card__value">3</strong>
+          </article>
+          <article class="metric-card">
+            <span class="metric-card__label">总座位数</span>
+            <strong class="metric-card__value">600</strong>
+          </article>
+          <article class="metric-card">
+            <span class="metric-card__label">进入方式</span>
+            <strong class="metric-card__value">登录后跳转</strong>
+          </article>
+        </div>
+      </header>
+
+      <section class="auth-panel glass-card" id="authPanel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-heading__tag">ACCESS GATE</p>
+            <h2>登录 / 注册</h2>
+          </div>
+          <span class="panel-heading__hint">认证成功后进入选座页</span>
+        </div>
+
+        <div class="auth-switch" role="tablist" aria-label="身份入口切换">
+          <button class="auth-switch__btn is-active" data-auth-view="login" role="tab" aria-selected="true">登录</button>
+          <button class="auth-switch__btn" data-auth-view="register" role="tab" aria-selected="false">注册</button>
+        </div>
+
+        <form class="auth-form is-active" id="loginForm" autocomplete="on">
+          <label class="field">
+            <span>用户名</span>
+            <input type="text" name="username" placeholder="请输入用户名" autocomplete="username" required />
+          </label>
+          <label class="field">
+            <span>密码</span>
+            <input type="password" name="password" placeholder="请输入密码" autocomplete="current-password" required />
+          </label>
+          <button type="submit" class="primary-btn">进入选座台</button>
+          <p class="auth-tip">默认管理员账号：<code>admin</code> / <code>admin123</code></p>
+        </form>
+
+        <form class="auth-form" id="registerForm" autocomplete="on">
+          <label class="field">
+            <span>用户名</span>
+            <input type="text" name="username" placeholder="3-16 位用户名" autocomplete="username" required />
+          </label>
+          <label class="field">
+            <span>昵称</span>
+            <input type="text" name="displayName" placeholder="展示昵称" autocomplete="nickname" required />
+          </label>
+          <label class="field">
+            <span>密码</span>
+            <input type="password" name="password" placeholder="至少 6 位密码" autocomplete="new-password" required />
+          </label>
+          <button type="submit" class="primary-btn">注册成为会员</button>
+          <p class="auth-tip">普通用户注册后自动获得会员身份，并直接进入选座界面。</p>
+        </form>
+
+        <div class="auth-message" id="authMessage" aria-live="polite"></div>
+      </section>
+    </section>
+
+    <section class="app-screen" id="appScreen" hidden>
+      <header class="hero hero--app">
+        <div class="hero__copy">
+          <p class="eyebrow">SEAT CONTROL DECK</p>
+          <h1>智能选座界面</h1>
+          <p class="hero__lead">
+            已进入选座主界面。现在可以切换影厅、查看弧形座位图，并进行单选或多选座位操作。
+          </p>
+        </div>
+        <div class="hero__metrics hero__metrics--app">
+          <article class="metric-card">
+            <span class="metric-card__label">当前用户</span>
+            <strong class="metric-card__value" id="heroUserName">未登录</strong>
+          </article>
+          <article class="metric-card">
+            <span class="metric-card__label">身份</span>
+            <strong class="metric-card__value" id="heroUserRole">访客</strong>
+          </article>
+          <article class="metric-card">
+            <button class="ghost-btn ghost-btn--wide" id="logoutBtn" type="button">退出登录</button>
+          </article>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="control-panel glass-card" id="controlPanel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-heading__tag">STEP 1</p>
+              <h2>影厅控制台</h2>
+            </div>
+            <span class="panel-heading__hint">切换影厅并查看统计</span>
+          </div>
+
+          <div class="user-strip">
+            <div>
+              <span class="user-strip__label">当前用户</span>
+              <strong id="currentUserName">未登录</strong>
+            </div>
+            <div>
+              <span class="user-strip__label">身份</span>
+              <strong id="currentUserRole">访客</strong>
+            </div>
+            <div>
+              <span class="user-strip__label">状态</span>
+              <strong id="currentUserStatus">请先登录</strong>
+            </div>
+          </div>
+
+          <section class="recommend-panel">
+            <div class="recommend-panel__head">
+              <div>
+                <p class="panel-heading__tag">SMART RECOMMEND</p>
+                <h3>智能推荐选座</h3>
+              </div>
+              <span class="panel-heading__hint">根据票型、人数与年龄自动寻找可用座位</span>
+            </div>
+
+            <div class="recommend-grid">
+              <label class="field">
+                <span>票型</span>
+                <select id="ticketTypeSelect">
+                  <option value="individual">个人票</option>
+                  <option value="couple">情侣票</option>
+                  <option value="family">家庭票</option>
+                  <option value="group">团体票</option>
+                </select>
+              </label>
+
+              <label class="field" id="memberCountField" hidden>
+                <span id="memberCountLabel">成员人数</span>
+                <input type="number" id="memberCountInput" min="3" max="8" step="1" value="3" />
+              </label>
+            </div>
+
+            <div class="members-grid" id="memberFields"></div>
+
+            <div class="recommend-actions">
+              <button class="primary-btn primary-btn--compact" id="recommendBtn" type="button">生成推荐座位</button>
+              <button class="ghost-btn ghost-btn--compact" id="clearRecommendBtn" type="button">清空推荐</button>
+            </div>
+
+            <div class="recommend-status" id="recommendStatus">
+              选择票型并填写观众信息后，系统会在当前影厅自动推荐符合规则的空座。
+            </div>
+
+            <div class="recommend-result">
+              <strong class="recommend-result__title">推荐结果</strong>
+              <p class="recommend-result__summary" id="recommendSummary">暂无推荐结果。</p>
+              <ul class="recommend-result__reasons" id="recommendReasonList"></ul>
+            </div>
+          </section>
+
+          <div class="hall-tabs" id="hallTabs" aria-label="影厅切换"></div>
+
+          <div class="hall-summary">
+            <article class="summary-card">
+              <span>当前影厅</span>
+              <strong id="hallName">-</strong>
+            </article>
+            <article class="summary-card">
+              <span>空座</span>
+              <strong id="availableCount">0</strong>
+            </article>
+            <article class="summary-card">
+              <span>已售</span>
+              <strong id="soldCount">0</strong>
+            </article>
+            <article class="summary-card">
+              <span>已选</span>
+              <strong id="selectedCount">0</strong>
+            </article>
+          </div>
+
+          <div class="legend">
+            <span><i class="legend__dot legend__dot--available"></i>空座</span>
+            <span><i class="legend__dot legend__dot--selected"></i>选中未售</span>
+            <span><i class="legend__dot legend__dot--sold"></i>已售</span>
+            <span><i class="legend__dot legend__dot--reserved"></i>已预订</span>
+            <span><i class="legend__ring legend__ring--manual"></i>手动选择</span>
+            <span><i class="legend__ring"></i>推荐座位</span>
+          </div>
+
+          <div class="selection-readout" id="selectionReadout">
+            尚未选择座位。点击可单选，按住 Ctrl 再点击可多选。
+          </div>
+
+          <div class="admin-note" id="adminNote" hidden>
+            管理员入口已识别。本阶段暂未开放后台管理，仅展示前台座位总览。
+          </div>
+
+          <section class="score-panel">
+            <div class="score-panel__head">
+              <div>
+                <p class="panel-heading__tag">EXPERIENCE SCORE</p>
+                <h3>观影体验评分</h3>
+              </div>
+              <span class="panel-heading__hint">根据当前选座自动计算系统评分，并支持观众手动打分</span>
+            </div>
+
+            <div class="score-grid">
+              <article class="score-card">
+                <span class="score-card__label">系统评分</span>
+                <strong class="score-card__value" id="systemScoreValue">-- / 100</strong>
+                <span class="score-card__grade" id="systemScoreGrade">待评估</span>
+              </article>
+              <article class="score-card">
+                <span class="score-card__label">综合结果</span>
+                <strong class="score-card__value" id="compositeScoreValue">-- / 100</strong>
+                <span class="score-card__grade" id="compositeScoreGrade">待评估</span>
+              </article>
+            </div>
+
+            <div class="user-rating-block">
+              <span class="score-card__label">观众手动评分</span>
+              <div class="rating-stars" id="ratingStars">
+                <button class="rating-star" data-rating="1" type="button" aria-label="1 星">★</button>
+                <button class="rating-star" data-rating="2" type="button" aria-label="2 星">★</button>
+                <button class="rating-star" data-rating="3" type="button" aria-label="3 星">★</button>
+                <button class="rating-star" data-rating="4" type="button" aria-label="4 星">★</button>
+                <button class="rating-star" data-rating="5" type="button" aria-label="5 星">★</button>
+              </div>
+              <p class="user-rating-text" id="userRatingText">尚未评分，综合结果暂以系统评分为主。</p>
+            </div>
+
+            <div class="score-status" id="scoreStatus">
+              选择座位后，系统会根据距离、视角、周围空位和规则匹配情况自动计算观影体验评分。
+            </div>
+
+            <div class="recommend-result score-result">
+              <strong class="recommend-result__title">评分理由</strong>
+              <ul class="recommend-result__reasons" id="experienceReasonList"></ul>
+            </div>
+          </section>
+
+          <section class="accessibility-panel">
+            <div class="score-panel__head accessibility-panel__head">
+              <div>
+                <p class="panel-heading__tag">ACCESSIBILITY MODE</p>
+                <h3>无障碍模式</h3>
+              </div>
+              <span class="panel-heading__hint">开关状态会自动保存，并在当前页面立即生效</span>
+            </div>
+
+            <div class="accessibility-grid">
+              <button class="accessibility-toggle" id="largeTextToggle" type="button" aria-pressed="false">
+                <span class="accessibility-toggle__title">大字体模式</span>
+                <span class="accessibility-toggle__desc">提升文字与表单可读性</span>
+              </button>
+              <button class="accessibility-toggle" id="highContrastToggle" type="button" aria-pressed="false">
+                <span class="accessibility-toggle__title">高对比度模式</span>
+                <span class="accessibility-toggle__desc">增强文字、边框与功能区对比</span>
+              </button>
+              <button class="accessibility-toggle" id="colorblindToggle" type="button" aria-pressed="false">
+                <span class="accessibility-toggle__title">色盲友好模式</span>
+                <span class="accessibility-toggle__desc">使用更易区分的座位与高亮配色</span>
+              </button>
+              <button class="accessibility-toggle" id="voiceToggle" type="button" aria-pressed="false">
+                <span class="accessibility-toggle__title">语音提示开关</span>
+                <span class="accessibility-toggle__desc">选座、推荐成功与购票成功时语音播报</span>
+              </button>
+            </div>
+
+            <div class="accessibility-actions">
+              <button class="ghost-btn ghost-btn--compact" id="voicePurchaseDemoBtn" type="button">模拟购票成功播报</button>
+            </div>
+
+            <div class="score-status accessibility-status" id="accessibilityStatus">
+              当前已关闭所有无障碍增强模式，可按需开启。
+            </div>
+          </section>
+
+          <section class="order-panel">
+            <div class="score-panel__head">
+              <div>
+                <p class="panel-heading__tag">ORDER CENTER</p>
+                <h3>订单中心</h3>
+              </div>
+              <span class="panel-heading__hint">选座后可直接预订或购票，订单与座位状态会自动保存</span>
+            </div>
+
+            <div class="order-actions">
+              <button class="primary-btn primary-btn--compact" id="reserveOrderBtn" type="button">预订当前座位</button>
+              <button class="ghost-btn ghost-btn--compact" id="purchaseOrderBtn" type="button">购票当前座位</button>
+            </div>
+
+            <div class="score-status order-status" id="orderStatus">
+              请先填写观众信息并选择座位，然后进行预订或购票。
+            </div>
+
+            <div class="order-list-heading">
+              <strong>我的订单</strong>
+              <span id="orderCount">0 笔</span>
+            </div>
+            <div class="order-list" id="orderList"></div>
+          </section>
+        </section>
+
+        <section class="canvas-panel glass-card">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-heading__tag">STEP 2</p>
+              <h2>弧形座位图</h2>
+            </div>
+            <span class="panel-heading__hint">Canvas Rendering</span>
+          </div>
+          <div class="canvas-frame">
+            <canvas id="seatCanvas" width="1200" height="760" aria-label="影院座位图"></canvas>
+          </div>
+        </section>
+      </main>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

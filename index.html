@@ -337,6 +337,34 @@
             </div>
             <span class="panel-heading__hint">Canvas Rendering</span>
           </div>
+
+          <section class="heat-panel" aria-labelledby="heatPanelTitle">
+            <div class="heat-panel__head">
+              <div>
+                <p class="panel-heading__tag">SEAT HEAT</p>
+                <h3 id="heatPanelTitle">座位热度扩散</h3>
+              </div>
+              <label class="heat-toggle">
+                <input id="heatVisibilityToggle" type="checkbox" checked />
+                <span>显示热度边框</span>
+              </label>
+            </div>
+
+            <p class="heat-panel__description">
+              座位内部颜色表示当前座位状态，座位外圈颜色表示热度。系统会根据已预订、已购票和已售座位向周围扩散热度，距离热源座位越近，热度越高。
+            </p>
+
+            <div class="heat-legend" aria-label="热度图例">
+              <span><i class="heat-legend__dot heat-legend__dot--super-hot"></i>超热门</span>
+              <span><i class="heat-legend__dot heat-legend__dot--hot"></i>热门</span>
+              <span><i class="heat-legend__dot heat-legend__dot--normal"></i>一般</span>
+              <span><i class="heat-legend__dot heat-legend__dot--cold"></i>冷门</span>
+            </div>
+
+            <div class="heat-source-stats" id="heatSourceStats" aria-live="polite"></div>
+            <p class="heat-panel__status" id="heatStatus"></p>
+          </section>
+
           <div class="canvas-frame">
             <canvas id="seatCanvas" width="1200" height="760" aria-label="影院座位图"></canvas>
           </div>

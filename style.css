@@ -61,7 +61,7 @@ body::before {
 }
 
 body.mode-large-text {
-  font-size: 18px;
+  font-size: 20px;
 }
 
 body.mode-large-text .hero h1 {
@@ -87,26 +87,27 @@ body.mode-large-text .recommend-result__reasons,
 body.mode-large-text .user-rating-text,
 body.mode-large-text .legend,
 body.mode-large-text .accessibility-toggle {
-  font-size: 1.125rem;
+  font-size: 1.25rem;
 }
 
 body.mode-large-text .panel-heading h2,
 body.mode-large-text .recommend-panel__head h3,
 body.mode-large-text .score-panel__head h3,
-body.mode-large-text .accessibility-panel__head h3 {
-  font-size: 1.45rem;
+body.mode-large-text .accessibility-panel__head h3,
+body.mode-large-text .heat-panel__head h3 {
+  font-size: 1.65rem;
 }
 
 body.mode-large-text .metric-card__value,
 body.mode-large-text .summary-card strong,
 body.mode-large-text .score-card__value {
-  font-size: 1.3rem;
+  font-size: 1.5rem;
 }
 
 /* Keep small labels and fixed-size status text readable in large-text mode. */
 body.mode-large-text .eyebrow,
 body.mode-large-text .panel-heading__tag {
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 
 body.mode-large-text .auth-switch__btn,
@@ -125,16 +126,21 @@ body.mode-large-text .order-card__seats,
 body.mode-large-text .order-card__time,
 body.mode-large-text .order-card__number,
 body.mode-large-text .order-status-badge,
-body.mode-large-text .order-card__footer .ghost-btn {
-  font-size: 1.125rem;
+body.mode-large-text .order-card__footer .ghost-btn,
+body.mode-large-text .heat-panel__description,
+body.mode-large-text .heat-legend,
+body.mode-large-text .heat-source-stat,
+body.mode-large-text .heat-panel__status,
+body.mode-large-text .heat-toggle {
+  font-size: 1.25rem;
 }
 
 body.mode-large-text .user-strip strong {
-  font-size: 1.08rem;
+  font-size: 1.2rem;
 }
 
 body.mode-large-text .rating-star {
-  font-size: 34px;
+  font-size: 36px;
 }
 
 body.mode-high-contrast {
@@ -197,7 +203,9 @@ body.mode-high-contrast .user-rating-block,
 body.mode-high-contrast .selection-readout,
 body.mode-high-contrast .admin-note,
 body.mode-high-contrast .canvas-frame,
-body.mode-high-contrast .accessibility-toggle {
+body.mode-high-contrast .accessibility-toggle,
+body.mode-high-contrast .heat-panel,
+body.mode-high-contrast .heat-source-stat {
   background: rgba(0, 0, 0, 0.82);
   border-color: rgba(255, 255, 255, 0.46);
 }
@@ -1039,6 +1047,131 @@ body.mode-high-contrast .accessibility-toggle {
   padding: 18px;
 }
 
+.heat-panel {
+  margin: 0 0 18px;
+  padding: 18px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.heat-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.heat-panel__head h3 {
+  margin: 0;
+}
+
+.heat-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 1px solid rgba(84, 210, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(84, 210, 255, 0.08);
+  color: var(--text-main);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.heat-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-strong);
+}
+
+.heat-panel__description,
+.heat-panel__status {
+  margin: 14px 0 0;
+  color: var(--text-soft);
+  line-height: 1.7;
+}
+
+.heat-panel__status {
+  padding: 10px 12px;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: var(--radius-md);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.heat-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  margin-top: 14px;
+  color: var(--text-soft);
+  font-size: 13px;
+}
+
+.heat-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.heat-legend__dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.heat-legend__dot--super-hot {
+  color: #a855f7;
+  background: #a855f7;
+}
+
+.heat-legend__dot--hot {
+  color: #ef4444;
+  background: #ef4444;
+}
+
+.heat-legend__dot--normal {
+  color: #f97316;
+  background: #f97316;
+}
+
+.heat-legend__dot--cold {
+  color: #3b82f6;
+  background: #3b82f6;
+}
+
+.heat-source-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.heat-source-stat {
+  padding: 11px 12px;
+  border: 1px solid rgba(118, 182, 255, 0.16);
+  border-radius: var(--radius-md);
+  background: rgba(0, 8, 20, 0.24);
+}
+
+.heat-source-stat span,
+.heat-source-stat strong {
+  display: block;
+}
+
+.heat-source-stat span {
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.heat-source-stat strong {
+  margin-top: 6px;
+  font-family: "Orbitron", sans-serif;
+  color: var(--text-main);
+}
+
 #seatCanvas {
   display: block;
   width: 100%;
@@ -1066,7 +1199,8 @@ body.mode-high-contrast .accessibility-toggle {
   .members-grid,
   .accessibility-grid,
   .recommend-actions,
-  .order-actions {
+  .order-actions,
+  .heat-source-stats {
     grid-template-columns: repeat(2, 1fr);
   }
 }
@@ -1092,7 +1226,8 @@ body.mode-high-contrast .accessibility-toggle {
   .members-grid,
   .accessibility-grid,
   .recommend-actions,
-  .order-actions {
+  .order-actions,
+  .heat-source-stats {
     grid-template-columns: 1fr;
   }
 
@@ -1105,6 +1240,10 @@ body.mode-high-contrast .accessibility-toggle {
   }
 
   .score-panel__head {
+    flex-direction: column;
+  }
+
+  .heat-panel__head {
     flex-direction: column;
   }
 

@@ -7,6 +7,7 @@ const ORDER_STATUS = {
   cancelled: "cancelled",
   refunded: "refunded"
 };
+const HEAT_RADIUS = 3;
 
 const hallsConfig = [
   { id: "small", name: "\u5c0f\u5385", rows: 10, seatsPerRow: 10 },
@@ -92,6 +93,9 @@ const dom = {
   orderStatus: document.getElementById("orderStatus"),
   orderCount: document.getElementById("orderCount"),
   orderList: document.getElementById("orderList"),
+  heatVisibilityToggle: document.getElementById("heatVisibilityToggle"),
+  heatSourceStats: document.getElementById("heatSourceStats"),
+  heatStatus: document.getElementById("heatStatus"),
   canvas: document.getElementById("seatCanvas")
 };
 
@@ -110,6 +114,7 @@ let userSeatRating = 0;
 let experienceScoreState = createEmptyExperienceScoreState();
 let lastSelectionSignature = "";
 let accessibilityState = loadAccessibilityState();
+let isHeatVisible = true;
 
 bootstrap();
 
@@ -156,6 +161,9 @@ function bindEvents() {
   dom.reserveOrderBtn.addEventListener("click", () => handleCreateOrder(ORDER_STATUS.reserved));
   dom.purchaseOrderBtn.addEventListener("click", () => handleCreateOrder(ORDER_STATUS.purchased));
   dom.orderList.addEventListener("click", handleOrderListAction);
+  if (dom.heatVisibilityToggle) {
+    dom.heatVisibilityToggle.addEventListener("change", handleHeatVisibilityChange);
+  }
   window.addEventListener("smartcinema:purchase-success", handlePurchaseSuccessAnnouncement);
   window.addEventListener("resize", renderCurrentHall);
 }
@@ -169,6 +177,11 @@ function initializeRecommendationUI() {
 function initializeAccessibilityUI() {
   applyAccessibilitySettings();
   renderAccessibilityState();
+}
+
+function handleHeatVisibilityChange(event) {
+  isHeatVisible = event.currentTarget.checked;
+  renderCurrentHall();
 }
 
 function handleAccessibilityToggle(settingKey) {
@@ -672,7 +685,33 @@ function renderCurrentHall() {
   dom.selectionReadout.textContent = buildSelectionSummary();
   dom.adminNote.hidden = !(currentUser && currentUser.role === "admin");
   updateExperienceScore(hall);
+  renderHeatPanel(hall);
   renderSeatCanvas(hall, Boolean(currentUser));
+}
+
+function renderHeatPanel(hall) {
+  if (!dom.heatVisibilityToggle || !dom.heatSourceStats || !dom.heatStatus) {
+    return;
+  }
+
+  const heatSources = getHeatSourceSeats(hall);
+  const reservedCount = heatSources.filter((source) => source.weight === 55).length;
+  const purchasedCount = heatSources.filter((source) => source.weight === 80).length;
+
+  dom.heatVisibilityToggle.checked = isHeatVisible;
+  dom.heatSourceStats.innerHTML = `
+    <article class="heat-source-stat">
+      <span>已预订热源</span>
+      <strong>${reservedCount} 个</strong>
+    </article>
+    <article class="heat-source-stat">
+      <span>已购票热源</span>
+      <strong>${purchasedCount} 个</strong>
+    </article>
+  `;
+  dom.heatStatus.textContent = heatSources.length
+    ? `当前${hall.name}共有 ${heatSources.length} 个热源座位，热度会在相邻 ${HEAT_RADIUS} 格范围内逐渐衰减。`
+    : "暂无预订或购买数据，热度将在用户预订或购票后自动生成。";
 }
 
 function buildSelectionSummary() {
@@ -711,6 +750,208 @@ function getSeatPalette() {
   };
 }
 
+function getSeatColumn(seat) {
+  return Number(seat.col || seat.number || 0);
+}
+
+function getHeatBorderColor(score) {
+  if (score >= 80) return "#a855f7";
+  if (score >= 55) return "#ef4444";
+  if (score >= 25) return "#f97316";
+  return "#3b82f6";
+}
+
+function normalizeSeatId(seat) {
+  if (typeof seat === "string") {
+    const match = seat.match(/(\d+)\D+(\d+)/);
+    return match ? `${Number(match[1])}-${Number(match[2])}` : null;
+  }
+
+  if (!seat || typeof seat !== "object") {
+    return null;
+  }
+
+  if (seat.seatId || seat.id) {
+    return normalizeSeatId(seat.seatId || seat.id);
+  }
+
+  const row = Number(seat.row);
+  const column = Number(seat.col || seat.number);
+  if (Number.isInteger(row) && Number.isInteger(column) && row > 0 && column > 0) {
+    return `${row}-${column}`;
+  }
+
+  return seat.label ? normalizeSeatId(seat.label) : null;
+}
+
+function buildSeatMap(hall) {
+  const seatMap = new Map();
+  hall.seats.forEach((seat) => {
+    const seatId = normalizeSeatId(seat);
+    if (seatId) {
+      seatMap.set(seatId, seat);
+    }
+  });
+  return seatMap;
+}
+
+function getValidOrdersForHeat() {
+  const orderCollections = [Array.isArray(state.orders) ? state.orders : []];
+  [STORAGE_KEY, "orders", "smartCinemaOrders", "cinemaOrders"].forEach((key) => {
+    try {
+      const saved = localStorage.getItem(key);
+      if (!saved) {
+        return;
+      }
+
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        orderCollections.push(parsed);
+      } else if (Array.isArray(parsed.orders)) {
+        orderCollections.push(parsed.orders);
+      }
+    } catch (error) {
+      // Ignore unrelated or malformed local storage without affecting seat selection.
+    }
+  });
+
+  const seenOrders = new Set();
+  return orderCollections
+    .flat()
+    .filter((order, index) => {
+      const orderKey = order?.orderNo || order?.id || `heat-order-${index}-${JSON.stringify(order)}`;
+      if (seenOrders.has(orderKey)) {
+        return false;
+      }
+      seenOrders.add(orderKey);
+      return getOrderHeatWeight(order) > 0;
+    });
+}
+
+function getOrderHeatWeight(order) {
+  const statuses = [order?.status, order?.statusCode]
+    .filter(Boolean)
+    .map((status) => String(status).trim().toLowerCase());
+  const invalidStatuses = ["cancelled", "canceled", "refunded", "已取消", "已退票"];
+  const purchasedStatuses = ["paid", "purchased", "sold", "completed", "已购票", "已售"];
+  const reservedStatuses = ["reserved", "booked", "已预订"];
+
+  if (statuses.some((status) => invalidStatuses.includes(status))) {
+    return 0;
+  }
+
+  if (statuses.some((status) => purchasedStatuses.includes(status))) {
+    return 80;
+  }
+
+  return statuses.some((status) => reservedStatuses.includes(status)) ? 55 : 0;
+}
+
+function doesOrderMatchHall(order, hall) {
+  const orderHallValues = [order.hallId, order.hallName, order.hall, order.roomId, order.roomName]
+    .filter((value) => value !== undefined && value !== null && String(value).trim() !== "")
+    .map((value) => String(value).trim().toLowerCase());
+
+  if (!orderHallValues.length) {
+    return true;
+  }
+
+  const hallValues = [hall.id, hall.name, hall.type]
+    .filter(Boolean)
+    .map((value) => String(value).trim().toLowerCase());
+  return orderHallValues.some((value) => hallValues.includes(value));
+}
+
+function getOrderSeatEntries(order) {
+  const seatFields = [order.seatKeys, order.seats, order.seatList, order.selectedSeats, order.seatIds, order.seat];
+  const entries = seatFields.find((field) => Array.isArray(field));
+
+  if (entries) {
+    return entries;
+  }
+
+  const singleEntry = seatFields.find((field) => field != null && !Array.isArray(field));
+  return singleEntry == null ? [] : [singleEntry];
+}
+
+function getSeatHeatWeight(status) {
+  const normalizedStatus = String(status || "").trim().toLowerCase();
+  if (["paid", "purchased", "sold", "completed", "已购票", "已售"].includes(normalizedStatus)) {
+    return 80;
+  }
+
+  return ["reserved", "booked", "已预订"].includes(normalizedStatus) ? 55 : 0;
+}
+
+function getHeatSourceSeats(hall) {
+  const seatMap = buildSeatMap(hall);
+  const sourceWeights = new Map();
+
+  hall.seats.forEach((seat) => {
+    const seatId = normalizeSeatId(seat);
+    const weight = getSeatHeatWeight(seat.status);
+    if (seatId && weight) {
+      sourceWeights.set(seatId, weight);
+    }
+  });
+
+  getValidOrdersForHeat()
+    .filter((order) => doesOrderMatchHall(order, hall))
+    .forEach((order) => {
+      const weight = getOrderHeatWeight(order);
+      getOrderSeatEntries(order).forEach((entry) => {
+        const seatId = normalizeSeatId(entry);
+        if (seatId && seatMap.has(seatId)) {
+          sourceWeights.set(seatId, Math.max(sourceWeights.get(seatId) || 0, weight));
+        }
+      });
+    });
+
+  return [...sourceWeights.entries()]
+    .map(([seatId, weight]) => {
+      const seat = seatMap.get(seatId);
+      return {
+        row: Number(seat.row),
+        col: getSeatColumn(seat),
+        weight
+      };
+    })
+    .filter((source) => source.row > 0 && source.col > 0);
+}
+
+function getSeatDistance(seat, source) {
+  const rowDiff = Number(seat.row) - Number(source.row);
+  const colDiff = getSeatColumn(seat) - Number(source.col);
+  return Math.sqrt(rowDiff * rowDiff + colDiff * colDiff);
+}
+
+function getHeatInfluenceByDistance(distance, sourceWeight) {
+  const isPaidSource = sourceWeight >= 80;
+
+  if (isPaidSource) {
+    if (distance === 0) return 80;
+    if (distance <= 1) return 30;
+    if (distance <= 2) return 14;
+    if (distance <= HEAT_RADIUS) return 6;
+    return 0;
+  }
+
+  if (distance === 0) return 55;
+  if (distance <= 1) return 20;
+  if (distance <= 2) return 9;
+  if (distance <= HEAT_RADIUS) return 4;
+  return 0;
+}
+
+function calculateSeatHeat(seat, hall, heatSources = getHeatSourceSeats(hall)) {
+  const heatScore = heatSources.reduce((total, source) => {
+    const distance = getSeatDistance(seat, source);
+    return total + getHeatInfluenceByDistance(distance, source.weight);
+  }, 0);
+
+  return Math.round(clamp(heatScore, 0, 100));
+}
+
 function renderSeatCanvas(hall, isLoggedIn) {
   const canvas = dom.canvas;
   const containerWidth = canvas.parentElement.clientWidth;
@@ -732,7 +973,7 @@ function renderSeatCanvas(hall, isLoggedIn) {
 }
 
 function drawCanvasChrome(width, height, hall, isLoggedIn, palette) {
-  const fontScale = accessibilityState.largeText ? 1.25 : 1;
+  const fontScale = accessibilityState.largeText ? 1.4 : 1;
   ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
   ctx.fillRect(0, 0, width, height);
 
@@ -768,7 +1009,7 @@ function drawCanvasChrome(width, height, hall, isLoggedIn, palette) {
 }
 
 function drawSeats(hall, width, isLoggedIn, palette) {
-  const fontScale = accessibilityState.largeText ? 1.25 : 1;
+  const fontScale = accessibilityState.largeText ? 1.4 : 1;
   const marginX = width < 480 ? 26 : 74;
   const startY = 170;
   const rowGap = width < 480 ? 46 : 48;
@@ -780,6 +1021,7 @@ function drawSeats(hall, width, isLoggedIn, palette) {
   const seatRadius = Math.max(4, Math.min(12, seatGap * 0.3));
   const labelEnabled = seatsPerRow <= 20 && seatRadius >= 7;
   const seats = [];
+  const heatSources = getHeatSourceSeats(hall);
 
   for (let row = 1; row <= rows; row += 1) {
     const rowBaseY = startY + (row - 1) * rowGap;
@@ -799,6 +1041,8 @@ function drawSeats(hall, width, isLoggedIn, palette) {
       const isSelected = selectedSeatKeys.includes(seatKey);
       const isRecommended = recommendedSeatKeys.includes(seatKey);
       const isManualSelected = isSelected && !isRecommended;
+      const heatScore = calculateSeatHeat(seatData, hall, heatSources);
+      const heatBorderColor = getHeatBorderColor(heatScore);
       const fillColor = seatData.status === "sold"
         ? palette.seatSold
         : seatData.status === "reserved"
@@ -814,8 +1058,20 @@ function drawSeats(hall, width, isLoggedIn, palette) {
       ctx.shadowColor = fillColor;
       ctx.shadowBlur = 14;
       ctx.fill();
-      ctx.lineWidth = isLoggedIn ? 1.5 : 1;
-      ctx.strokeStyle = isLoggedIn ? "rgba(255,255,255,0.68)" : "rgba(255,255,255,0.28)";
+      ctx.shadowBlur = 0;
+
+      ctx.beginPath();
+      if (isHeatVisible) {
+        ctx.arc(x, y, seatRadius + 1.2, 0, Math.PI * 2);
+        ctx.strokeStyle = heatBorderColor;
+        ctx.lineWidth = Math.max(1, Math.min(2, seatRadius * 0.2));
+        ctx.shadowColor = heatBorderColor;
+        ctx.shadowBlur = heatScore >= 55 ? 4 : 2;
+      } else {
+        ctx.arc(x, y, seatRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = isLoggedIn ? "rgba(255,255,255,0.68)" : "rgba(255,255,255,0.28)";
+        ctx.lineWidth = isLoggedIn ? 1.5 : 1;
+      }
       ctx.stroke();
       ctx.restore();
 
@@ -1188,6 +1444,9 @@ function handleRecommendSeats() {
 }
 
 function handleClearRecommendation() {
+  const recommendedKeys = new Set(recommendedSeatKeys);
+  selectedSeatKeys = selectedSeatKeys.filter((seatKey) => !recommendedKeys.has(seatKey));
+
   clearRecommendation({
     keepSelection: true,
     status: "idle",

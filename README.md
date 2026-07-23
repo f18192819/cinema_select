@@ -1,118 +1,112 @@
 # SmartCinema 智能影院选座系统
 
-## 项目简介
+SmartCinema 是一个使用 `HTML5`、`CSS3`、原生 JavaScript 和 Canvas 实现的纯前端影院选座课程项目。系统围绕“减少用户选座决策成本”设计，提供普通用户选座端与管理员后台，并使用浏览器 LocalStorage 保存数据，不依赖后端或第三方图表库。
 
-这是一个使用 `HTML5 + CSS3 + 原生 JavaScript` 实现的纯前端影院选座系统第一阶段版本，满足以下已交付内容：
-
-- 登录 / 注册界面
-- 本地会员与管理员账号体系
-- 三个影厅切换
-- Canvas 弧形座位图绘制
-- 座位状态显示
-- `LocalStorage` 初始化数据
-- PC / iPad / 手机端响应式布局
-
-## 技术约束落实
-
-- 仅使用原生前端技术，不依赖框架
-- 座位图使用 `Canvas` 绘制
-- 数据保存在浏览器 `LocalStorage`
-- 项目可直接打开 [index.html](/C:/data/web/big_homework/index.html) 运行
-
-## 项目结构
-
-```text
-big_homework/
-├─ AGENT.md
-├─ README.md
-├─ PHASE1_REPORT.md
-├─ index.html
-├─ style.css
-└─ app.js
-```
+详细操作说明请见 [用户使用手册](USER_MANUAL.md)。课程原始要求见 [大作业说明](大作业选题一：SmartCinema智能影院选座系统（作业说明）.docx)。
 
 ## 运行方式
 
-### 方式一：直接打开
-
-直接用浏览器打开 [index.html](/C:/data/web/big_homework/index.html)。
-
-### 方式二：本地静态服务
-
-如果你想用本地服务运行，可以在项目目录执行：
+直接在浏览器中打开 [index.html](index.html) 即可使用。若需要通过本地静态服务运行，在项目目录执行：
 
 ```powershell
 python -m http.server 8080
 ```
 
-然后访问：
+然后访问 `http://localhost:8080`。
+
+默认管理员账号为 `admin`，密码为 `Admin@123`。普通账号只能通过注册页面创建。
+
+## 项目结构
 
 ```text
-http://localhost:8080
+big_homework/
+├─ index.html          页面结构：登录、用户端、管理员后台
+├─ style.css           科技感主题、响应式布局、无障碍模式样式
+├─ app.js              业务状态、Canvas 绘制、交互、LocalStorage 持久化
+├─ USER_MANUAL.md      用户使用手册
+├─ PHASE1_REPORT.md    第一阶段开发记录
+├─ README.md           项目说明与功能代码对照
+└─ 大作业选题一：SmartCinema智能影院选座系统（作业说明）.docx
 ```
 
-## 默认账号
+## 设计思路
 
-- 管理员：`admin`
-- 密码：`admin123`
+### 1. 以角色分流减少误操作
 
-普通用户可通过注册表单创建账号，注册成功后自动获得会员身份并登录。
+页面初始化时先加载用户与当前会话。普通用户进入选座端，管理员进入后台；注册逻辑固定生成普通用户，管理员只由 `initDefaultAdmin()` 初始化。权限判断集中在 `getCurrentUser()`、`isAdmin()` 和 `isNormalUser()`，避免把角色判断分散到页面各处。
 
-## 当前可用功能
+### 2. 以单一状态源同步座位与订单
 
-### 1. 登录与注册
+影厅座位、用户与订单集中保存在 `state` 中，任何预订、购票、取消、退票或管理员座位修改都会调用 `saveState()` 保存并重新渲染。这样普通用户端、热度边框和管理员后台读取的是同一份数据。
 
-- 支持会员注册
-- 支持会员登录
-- 支持管理员登录
-- 登录状态保存在 `LocalStorage`
+### 3. 用 Canvas 承担视觉密度高的座位交互
 
-### 2. 影厅切换
+三种影厅都由 `drawSeats()` 按行列和弧形曲线计算座位坐标，再根据状态绘制内部颜色、热度边框、推荐外圈和手动选择外圈。点击检测仍使用同一组 Canvas 坐标，保证绘制和交互一致。
 
-- 小厅：10 排 x 10 座，共 100 座
-- 中厅：10 排 x 20 座，共 200 座
-- 大厅：10 排 x 30 座，共 300 座
+### 4. 推荐与评分分别解决“怎么选”和“选得怎么样”
 
-### 3. 座位图
+推荐模块先校验票型、人数与年龄约束，再搜索连续空座；评分模块从距离、水平视角、周围空位和规则匹配四个维度汇总为系统评分，并可结合 1-5 星人工评分。
 
-- 使用 `Canvas` 绘制弧形座位布局
-- 空座为绿色
-- 已选未售座位为黄色
-- 已售座位为红色
-- 登录后可点击座位进行选择
-- 支持单选
-- 支持 `Ctrl + 点击` 多选
+### 5. 热度基于真实座位状态缓慢扩散
 
-### 4. 本地数据初始化
+热度来源为已售、已购票和已预订座位。系统先用 `Map` 为热源去重，再按距离分段累计影响，最后只用座位外圈的颜色和微弱发光显示热度，避免覆盖座位实际状态。
 
-首次打开页面会自动初始化：
+### 6. 无障碍和响应式作为全局能力
 
-- 默认管理员账号
-- 三个影厅座位数据
-- 已售座位样例数据
+大字体、高对比度、色盲友好和语音提示均通过 `body` 模式类和 `smartCinemaAccessibility` 持久化，切换后立即影响现有页面，不需要重载或额外页面。
 
-本地存储键名：
+## LocalStorage 数据
 
-```text
-smartCinemaState
-```
+| 键名 | 用途 |
+|---|---|
+| `smartCinemaState` | 影厅、座位、订单、旧版用户兼容状态与当前用户 ID |
+| `smartCinemaUsers` | 统一用户列表，保存 `id`、`username`、`password`、`role`、`memberLevel`、`createdAt` 等演示数据 |
+| `smartCinemaCurrentUser` | 当前登录会话，只保存用户 ID、用户名、角色、会员等级和登录时间，不保存密码 |
+| `smartCinemaAccessibility` | 大字体、高对比度、色盲友好、语音提示开关 |
 
-## 测试建议
+> 本项目为前端课程演示，密码保存在 LocalStorage 中仅用于本地功能展示，不能用于真实生产系统。
 
-1. 打开页面，确认首屏能正常显示登录区、影厅区和座位图。
-2. 使用 `admin / admin123` 登录，检查管理员状态是否展示。
-3. 注册一个新账号，确认注册后自动登录。
-4. 依次切换小厅、中厅、大厅，确认座位数量与统计变化。
-5. 点击空座测试单选。
-6. 按住 `Ctrl` 点击多个空座，测试多选。
-7. 点击红色座位，确认不可选。
-8. 刷新页面，确认用户与本地数据仍可读取。
+## 作业功能与代码对照
 
-## 下一阶段可继续扩展
+下表依据 [大作业说明](大作业选题一：SmartCinema智能影院选座系统（作业说明）.docx) 的基本功能和六个模块整理。函数名可直接在 `app.js` 中搜索。
 
-- 智能推荐选座
-- 手动修改推荐结果
-- 热度地图
-- 观影评分
-- 无障碍模式
-- 订单中心
+| 作业功能 | 页面与核心代码 | 实现说明 |
+|---|---|---|
+| 登录、注册与管理员后台 | `index.html` 的 `#authScreen`、`#appScreen`、`#adminScreen`；`handleLogin()`、`handleRegister()`、`handleLogout()`、`initDefaultAdmin()`、`syncScreenState()` | 普通注册固定为 `user/normal`；管理员进入后台，用户进入选座端。 |
+| 三个影厅与弧形座位图 | `hallsConfig`、`buildSeats()`、`renderHallTabs()`、`renderSeatCanvas()`、`drawSeats()` | 小厅 100 座、中厅 200 座、大厅 300 座，均为 10 排；Canvas 负责弧形布局和状态颜色。 |
+| 座位状态与本地初始化 | `soldPatternByHall()`、`getSeatPalette()`、`loadState()`、`saveState()` | 支持空座、选中、已售、已预订、维修/禁用等状态，并持久化到 LocalStorage。 |
+| 模块 1：智能推荐选座 | `handleRecommendSeats()`、`recommendSeatsForHall()`、`calculateAudienceRestriction()` 及其候选座位辅助函数 | 支持个人、情侣、家庭、团体票；处理少年、老年人、连续座位和团体同排约束，并输出推荐理由。 |
+| 模块 2：手动选座 | `handleCanvasClick()`、`handleCanvasPointerDown()`、`handleCanvasPointerMove()`、`handleCanvasPointerUp()` | 支持单选、`Ctrl` 多选、推荐后手动修改和拖拽框选。 |
+| 模块 3：影院热度地图 | `getHeatSourceSeats()`、`getHeatInfluenceByDistance()`、`calculateSeatHeat()`、`getHeatBorderColor()`、`renderHeatPanel()`；Canvas 的 `drawSeats()` | 热度由预订/购票/已售座位按距离分段扩散并累加，只绘制外圈边框。当前版本不包含作业说明中的“一周播放动画”。 |
+| 模块 4：观影体验评分 | `updateExperienceScore()`、`calculateSystemExperienceScore()`、`handleUserRating()`、`renderExperienceScoreState()` | 根据距离、居中程度、周边空位和规则匹配给出分数与等级，并显示用户评分后的综合结果。 |
+| 模块 5：无障碍模式 | `handleAccessibilityToggle()`、`applyAccessibilitySettings()`、`renderAccessibilityState()`、`speakMessage()`；`style.css` 的 `mode-large-text`、`mode-high-contrast`、`mode-colorblind` | 支持大字体、高对比度、色盲友好和 SpeechSynthesis 语音提示，配置会保存。 |
+| 模块 6：订单中心 | `handleCreateOrder()`、`validateOrderSelection()`、`handleOrderListAction()`、`updateOrderStatus()`、`renderOrderCenter()` | 支持预订、取消预订、购票和退票；订单状态会同步更新座位。 |
+| 管理员扩展 | `renderAdminDashboard()`、`renderAdminSeatCanvas()`、`handleAdminSeatCanvasClick()`、`handleAdminOrderAction()`、`handleAdminResetHall()`、`renderAdminUsers()` | 管理员可查看概览、修改座位、重置影厅、管理全部订单和查看普通用户；不展示用户密码。 |
+
+## 作业要求完成情况
+
+| 项目 | 当前状态 |
+|---|---|
+| 原生 HTML、CSS、JavaScript | 已完成 |
+| Canvas 弧形座位布局 | 已完成 |
+| Canvas 热度边框 | 已完成 |
+| LocalStorage 数据保存 | 已完成 |
+| PC、平板、手机响应式布局 | 已完成基础适配 |
+| AI 问答式观影顾问 | 未单独实现；当前为表单式智能推荐 |
+| 一周热度变化播放 | 未实现；当前为订单/座位状态实时热度扩散 |
+| WebSocket 多人实时更新 | 未实现；当前为本地数据同步 |
+
+## 验证建议
+
+1. 使用管理员账号登录，检查后台概览、座位状态修改、订单列表和普通用户列表。
+2. 退出后注册普通用户，检查进入选座端且无法进入后台。
+3. 输入观众信息生成推荐，确认推荐外圈、理由和座位数量正确。
+4. 测试单选、`Ctrl` 多选与拖拽框选；已售、预订、禁用座位不可选。
+5. 预订、取消预订、购票和退票后刷新页面，确认座位、订单与热度边框仍同步。
+6. 逐个开启无障碍模式，确认样式立即变化且刷新后仍保留。
+
+## 已知边界
+
+- 项目无后端与真实支付，所有数据仅保存在当前浏览器。
+- 清除浏览器站点数据会重置本地状态。
+- 管理员用户管理目前提供普通用户信息展示，不提供删除用户功能。

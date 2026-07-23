@@ -1,4 +1,6 @@
 const STORAGE_KEY = "smartCinemaState";
+const USER_STORAGE_KEY = "smartCinemaUsers";
+const CURRENT_USER_STORAGE_KEY = "smartCinemaCurrentUser";
 const ACCESSIBILITY_STORAGE_KEY = "smartCinemaAccessibility";
 const AUTH_VIEWS = ["login", "register"];
 const ORDER_STATUS = {
@@ -47,6 +49,7 @@ const TICKET_TYPE_CONFIG = {
 const dom = {
   authScreen: document.getElementById("authScreen"),
   appScreen: document.getElementById("appScreen"),
+  adminScreen: document.getElementById("adminScreen"),
   loginForm: document.getElementById("loginForm"),
   registerForm: document.getElementById("registerForm"),
   authMessage: document.getElementById("authMessage"),
@@ -96,12 +99,28 @@ const dom = {
   heatVisibilityToggle: document.getElementById("heatVisibilityToggle"),
   heatSourceStats: document.getElementById("heatSourceStats"),
   heatStatus: document.getElementById("heatStatus"),
-  canvas: document.getElementById("seatCanvas")
+  canvas: document.getElementById("seatCanvas"),
+  adminUserName: document.getElementById("adminUserName"),
+  adminLogoutBtn: document.getElementById("adminLogoutBtn"),
+  adminHallCount: document.getElementById("adminHallCount"),
+  adminOrderCount: document.getElementById("adminOrderCount"),
+  adminUserCount: document.getElementById("adminUserCount"),
+  adminHallTabs: document.getElementById("adminHallTabs"),
+  adminSeatStatusSelect: document.getElementById("adminSeatStatusSelect"),
+  adminResetHallBtn: document.getElementById("adminResetHallBtn"),
+  adminSeatStatus: document.getElementById("adminSeatStatus"),
+  adminCanvas: document.getElementById("adminSeatCanvas"),
+  adminOrderSummary: document.getElementById("adminOrderSummary"),
+  adminOrderList: document.getElementById("adminOrderList"),
+  adminUserSummary: document.getElementById("adminUserSummary"),
+  adminUserList: document.getElementById("adminUserList")
 };
 
 const ctx = dom.canvas.getContext("2d");
+const adminCtx = dom.adminCanvas ? dom.adminCanvas.getContext("2d") : null;
 
 let state = loadState();
+initializeUserData();
 let selectedHallId = hallsConfig[0].id;
 let selectedSeatKeys = [];
 let recommendedSeatKeys = [];
@@ -115,12 +134,14 @@ let experienceScoreState = createEmptyExperienceScoreState();
 let lastSelectionSignature = "";
 let accessibilityState = loadAccessibilityState();
 let isHeatVisible = true;
+let adminRenderedSeats = [];
 
 bootstrap();
 
 function bootstrap() {
   renderAuthSwitch("login");
   renderHallTabs();
+  renderAdminHallTabs();
   initializeRecommendationUI();
   initializeAccessibilityUI();
   bindEvents();
@@ -130,6 +151,7 @@ function bootstrap() {
   renderExperienceScoreState();
   renderOrderCenter();
   renderCurrentHall();
+  renderAdminDashboard();
 }
 
 function bindEvents() {
@@ -140,6 +162,7 @@ function bindEvents() {
   dom.loginForm.addEventListener("submit", handleLogin);
   dom.registerForm.addEventListener("submit", handleRegister);
   dom.logoutBtn.addEventListener("click", handleLogout);
+  dom.adminLogoutBtn.addEventListener("click", handleLogout);
   dom.canvas.addEventListener("mousedown", handleCanvasPointerDown);
   dom.canvas.addEventListener("mousemove", handleCanvasPointerMove);
   dom.canvas.addEventListener("mouseup", handleCanvasPointerUp);
@@ -161,11 +184,17 @@ function bindEvents() {
   dom.reserveOrderBtn.addEventListener("click", () => handleCreateOrder(ORDER_STATUS.reserved));
   dom.purchaseOrderBtn.addEventListener("click", () => handleCreateOrder(ORDER_STATUS.purchased));
   dom.orderList.addEventListener("click", handleOrderListAction);
+  dom.adminCanvas.addEventListener("click", handleAdminSeatCanvasClick);
+  dom.adminOrderList.addEventListener("click", handleAdminOrderAction);
+  dom.adminResetHallBtn.addEventListener("click", handleAdminResetHall);
   if (dom.heatVisibilityToggle) {
     dom.heatVisibilityToggle.addEventListener("change", handleHeatVisibilityChange);
   }
   window.addEventListener("smartcinema:purchase-success", handlePurchaseSuccessAnnouncement);
-  window.addEventListener("resize", renderCurrentHall);
+  window.addEventListener("resize", () => {
+    renderCurrentHall();
+    renderAdminSeatCanvas();
+  });
 }
 
 function initializeRecommendationUI() {
@@ -208,6 +237,11 @@ function handleCreateOrder(statusCode) {
   const currentUser = getCurrentUser();
   if (!currentUser) {
     setOrderStatus("请先登录后再进行预订或购票。", "error");
+    return;
+  }
+
+  if (!isNormalUser()) {
+    setOrderStatus("管理员账号仅可管理影院数据，不能创建用户订单。", "error");
     return;
   }
 
@@ -270,6 +304,7 @@ function handleCreateOrder(statusCode) {
   });
   renderOrderCenter();
   renderCurrentHall();
+  renderAdminDashboard();
   setOrderStatus(
     statusCode === ORDER_STATUS.reserved
       ? `预订成功，订单号 ${order.orderNo}，座位已锁定。`
@@ -334,7 +369,7 @@ function handleOrderListAction(event) {
   const order = state.orders.find((entry) => entry.orderNo === actionButton.dataset.orderNo);
   const currentUser = getCurrentUser();
 
-  if (!order || !currentUser || order.userId !== currentUser.id) {
+  if (!order || !currentUser || !isNormalUser() || order.userId !== currentUser.id) {
     setOrderStatus("订单不存在，或当前用户无权操作该订单。", "error");
     return;
   }
@@ -372,11 +407,12 @@ function updateOrderStatus(order, nextStatusCode) {
   saveState();
   renderOrderCenter();
   renderCurrentHall();
+  renderAdminDashboard();
 }
 
 function renderOrderCenter() {
   const currentUser = getCurrentUser();
-  const orders = currentUser
+  const orders = isNormalUser() && currentUser
     ? state.orders.filter((order) => order.userId === currentUser.id)
     : [];
 
@@ -555,7 +591,7 @@ function handleLogin(event) {
   const password = String(formData.get("password") || "").trim();
 
   const user = state.users.find(
-    (entry) => entry.username === username && entry.password === password
+    (entry) => entry.username === username && entry.password === password && !entry.disabled
   );
 
   if (!user) {
@@ -563,14 +599,14 @@ function handleLogin(event) {
     return;
   }
 
-  state.currentUserId = user.id;
-  saveState();
+  setCurrentUser(user);
   selectedSeatKeys = [];
   syncScreenState();
   syncCurrentUserUI();
   resetOrderStatus();
   renderOrderCenter();
   renderCurrentHall();
+  renderAdminDashboard();
   setAuthMessage("", "");
   event.currentTarget.reset();
 }
@@ -582,6 +618,11 @@ function handleRegister(event) {
   const displayName = String(formData.get("displayName") || "").trim();
   const password = String(formData.get("password") || "").trim();
 
+  if (!username || !password || !displayName) {
+    setAuthMessage("用户名、昵称和密码均不能为空。", "error");
+    return;
+  }
+
   if (username.length < 3 || username.length > 16) {
     setAuthMessage("用户名长度需在 3 到 16 位之间。", "error");
     return;
@@ -592,35 +633,41 @@ function handleRegister(event) {
     return;
   }
 
-  if (state.users.some((entry) => entry.username === username)) {
+  if (username.toLowerCase() === "admin") {
+    setAuthMessage("admin 为系统保留管理员账号，不能注册。", "error");
+    return;
+  }
+
+  if (state.users.some((entry) => entry.username.toLowerCase() === username.toLowerCase())) {
     setAuthMessage("该用户名已存在，请更换后重试。", "error");
     return;
   }
 
   const user = {
-    id: `user_${Date.now()}`,
+    id: `user-${Date.now()}`,
     username,
     displayName,
     password,
-    role: "member",
+    role: "user",
+    memberLevel: "normal",
     createdAt: new Date().toISOString()
   };
 
   state.users.push(user);
-  state.currentUserId = user.id;
-  saveState();
+  setCurrentUser(user);
   selectedSeatKeys = [];
   syncScreenState();
   syncCurrentUserUI();
   resetOrderStatus();
   renderOrderCenter();
   renderCurrentHall();
+  renderAdminDashboard();
   setAuthMessage("", "");
   event.currentTarget.reset();
 }
 
 function handleLogout() {
-  state.currentUserId = null;
+  clearCurrentUser();
   saveState();
   selectedSeatKeys = [];
   renderAuthSwitch("login");
@@ -637,6 +684,7 @@ function handleLogout() {
   resetOrderStatus();
   renderOrderCenter();
   renderCurrentHall();
+  renderAdminDashboard();
   dom.loginForm.reset();
   dom.registerForm.reset();
 }
@@ -683,10 +731,309 @@ function renderCurrentHall() {
   dom.soldCount.textContent = String(soldCount);
   dom.selectedCount.textContent = String(selectedSeatKeys.length);
   dom.selectionReadout.textContent = buildSelectionSummary();
-  dom.adminNote.hidden = !(currentUser && currentUser.role === "admin");
+  dom.adminNote.hidden = true;
   updateExperienceScore(hall);
   renderHeatPanel(hall);
-  renderSeatCanvas(hall, Boolean(currentUser));
+  renderSeatCanvas(hall, Boolean(currentUser && currentUser.role === "user"));
+}
+
+function renderAdminDashboard() {
+  if (!isAdmin()) {
+    return;
+  }
+
+  const user = getCurrentUser();
+  dom.adminUserName.textContent = user.displayName || user.username;
+  dom.adminHallCount.textContent = String(Object.keys(state.halls).length);
+  dom.adminOrderCount.textContent = String(state.orders.length);
+  dom.adminUserCount.textContent = String(state.users.length);
+  renderAdminHallTabs();
+  renderAdminSeatCanvas();
+  renderAdminOrders();
+  renderAdminUsers();
+}
+
+function renderAdminHallTabs() {
+  if (!dom.adminHallTabs) {
+    return;
+  }
+
+  dom.adminHallTabs.innerHTML = "";
+  hallsConfig.forEach((hall) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `hall-tab${hall.id === selectedHallId ? " is-active" : ""}`;
+    button.innerHTML = `${hall.name}<small>${hall.rows} 排 / 每排 ${hall.seatsPerRow} 座</small>`;
+    button.addEventListener("click", () => {
+      if (!isAdmin()) {
+        setAdminSeatStatus("无管理员权限。", "error");
+        return;
+      }
+
+      selectedHallId = hall.id;
+      selectedSeatKeys = [];
+      recommendedSeatKeys = [];
+      renderAdminDashboard();
+    });
+    dom.adminHallTabs.appendChild(button);
+  });
+}
+
+function renderAdminSeatCanvas() {
+  if (!adminCtx || !dom.adminCanvas || !isAdmin()) {
+    return;
+  }
+
+  const hall = state.halls[selectedHallId];
+  const containerWidth = dom.adminCanvas.parentElement.clientWidth || 920;
+  const logicalWidth = Math.max(320, Math.min(920, containerWidth - 36));
+  const logicalHeight = 610;
+  const pixelRatio = window.devicePixelRatio || 1;
+  const palette = getSeatPalette();
+  const marginX = logicalWidth < 480 ? 26 : 58;
+  const startY = 122;
+  const rowGap = 43;
+  const curveStrength = logicalWidth < 480 ? 12 : 18;
+  const maxSeatWidth = logicalWidth - marginX * 2;
+  const seatGap = maxSeatWidth / Math.max(hall.seatsPerRow - 1, 1);
+  const seatRadius = Math.max(4, Math.min(11, seatGap * 0.3));
+  const labelEnabled = hall.seatsPerRow <= 20 && seatRadius >= 7;
+
+  dom.adminCanvas.width = logicalWidth * pixelRatio;
+  dom.adminCanvas.height = logicalHeight * pixelRatio;
+  dom.adminCanvas.style.width = `${logicalWidth}px`;
+  dom.adminCanvas.style.height = `${logicalHeight}px`;
+  adminCtx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  adminCtx.clearRect(0, 0, logicalWidth, logicalHeight);
+  adminCtx.fillStyle = "rgba(0, 8, 20, 0.46)";
+  adminCtx.fillRect(0, 0, logicalWidth, logicalHeight);
+  adminCtx.fillStyle = palette.textMain;
+  adminCtx.font = "700 15px Orbitron, sans-serif";
+  adminCtx.textAlign = "center";
+  adminCtx.fillText(`${hall.name} / SEAT STATUS`, logicalWidth / 2, 34);
+  adminCtx.fillStyle = palette.textSoft;
+  adminCtx.font = "13px 'Noto Sans SC', sans-serif";
+  adminCtx.fillText("选择状态后点击座位，即可保存并同步到用户端", logicalWidth / 2, 58);
+
+  adminRenderedSeats = [];
+  for (let row = 1; row <= hall.rows; row += 1) {
+    const rowBaseY = startY + (row - 1) * rowGap;
+    adminCtx.fillStyle = palette.textSoft;
+    adminCtx.font = "11px Orbitron, sans-serif";
+    adminCtx.textAlign = "left";
+    adminCtx.fillText(`R${String(row).padStart(2, "0")}`, 10, rowBaseY + 4);
+
+    for (let seatNumber = 1; seatNumber <= hall.seatsPerRow; seatNumber += 1) {
+      const index = seatNumber - 1;
+      const normalized = hall.seatsPerRow === 1 ? 0 : index / (hall.seatsPerRow - 1) - 0.5;
+      const x = marginX + index * seatGap;
+      const y = rowBaseY + curveStrength * Math.pow(normalized * 2, 2);
+      const seat = hall.seats[(row - 1) * hall.seatsPerRow + index];
+      const fillColor = seat.status === "sold"
+        ? palette.seatSold
+        : seat.status === "reserved"
+          ? palette.seatReserved
+          : seat.status === "disabled"
+            ? palette.seatDisabled
+            : palette.seatAvailable;
+
+      adminCtx.save();
+      adminCtx.beginPath();
+      adminCtx.arc(x, y, seatRadius, 0, Math.PI * 2);
+      adminCtx.fillStyle = fillColor;
+      adminCtx.shadowColor = fillColor;
+      adminCtx.shadowBlur = 7;
+      adminCtx.fill();
+      adminCtx.shadowBlur = 0;
+      adminCtx.strokeStyle = "rgba(255,255,255,0.56)";
+      adminCtx.lineWidth = 1;
+      adminCtx.stroke();
+      adminCtx.restore();
+
+      if (labelEnabled) {
+        adminCtx.fillStyle = "#03111f";
+        adminCtx.font = "9px 'Noto Sans SC', sans-serif";
+        adminCtx.textAlign = "center";
+        adminCtx.fillText(String(seatNumber), x, y + 3);
+      }
+
+      adminRenderedSeats.push({
+        key: `${seat.row}-${seat.number}`,
+        x,
+        y,
+        radius: seatRadius
+      });
+    }
+  }
+}
+
+function handleAdminSeatCanvasClick(event) {
+  if (!isAdmin()) {
+    setAdminSeatStatus("无管理员权限。", "error");
+    return;
+  }
+
+  const rect = dom.adminCanvas.getBoundingClientRect();
+  const logicalWidth = parseFloat(dom.adminCanvas.style.width);
+  const logicalHeight = parseFloat(dom.adminCanvas.style.height);
+  const pointerX = ((event.clientX - rect.left) / rect.width) * logicalWidth;
+  const pointerY = ((event.clientY - rect.top) / rect.height) * logicalHeight;
+  const hitSeat = adminRenderedSeats.find((seat) => Math.hypot(pointerX - seat.x, pointerY - seat.y) <= seat.radius + 4);
+
+  if (!hitSeat) {
+    return;
+  }
+
+  const hall = state.halls[selectedHallId];
+  const seat = findSeatByKey(hall, hitSeat.key);
+  const nextStatus = dom.adminSeatStatusSelect.value;
+  if (!seat || !nextStatus) {
+    return;
+  }
+
+  closeConflictingOrdersForAdminSeat(hall, hitSeat.key, nextStatus);
+  seat.status = nextStatus;
+  selectedSeatKeys = selectedSeatKeys.filter((seatKey) => seatKey !== hitSeat.key);
+  recommendedSeatKeys = recommendedSeatKeys.filter((seatKey) => seatKey !== hitSeat.key);
+  saveState();
+  setAdminSeatStatus(`${formatSeatLabel(hitSeat.key)} 已更新为${getSeatStatusLabel(nextStatus)}，用户端已同步。`, "success");
+  renderCurrentHall();
+  renderAdminDashboard();
+}
+
+function closeConflictingOrdersForAdminSeat(hall, seatKey, nextStatus) {
+  state.orders.forEach((order) => {
+    const statusCode = order.statusCode || getOrderStatusCode(order.status);
+    const isActive = statusCode === ORDER_STATUS.reserved || statusCode === ORDER_STATUS.purchased;
+    const includesSeat = order.hallId === hall.id && (order.seatKeys || []).includes(seatKey);
+    const shouldKeepPurchasedOrder = nextStatus === "sold" && statusCode === ORDER_STATUS.purchased;
+
+    if (!isActive || !includesSeat || shouldKeepPurchasedOrder) {
+      return;
+    }
+
+    order.statusCode = statusCode === ORDER_STATUS.reserved ? ORDER_STATUS.cancelled : ORDER_STATUS.refunded;
+    order.status = getOrderStatusLabel(order.statusCode);
+    order.updatedAt = new Date().toISOString();
+  });
+}
+
+function handleAdminResetHall() {
+  if (!isAdmin()) {
+    setAdminSeatStatus("无管理员权限。", "error");
+    return;
+  }
+
+  const hall = state.halls[selectedHallId];
+  state.orders.forEach((order) => {
+    if (order.hallId !== hall.id) {
+      return;
+    }
+
+    const statusCode = order.statusCode || getOrderStatusCode(order.status);
+    if (statusCode === ORDER_STATUS.reserved || statusCode === ORDER_STATUS.purchased) {
+      order.statusCode = statusCode === ORDER_STATUS.reserved ? ORDER_STATUS.cancelled : ORDER_STATUS.refunded;
+      order.status = getOrderStatusLabel(order.statusCode);
+      order.updatedAt = new Date().toISOString();
+    }
+  });
+  hall.seats = buildSeats(hall.rows, hall.seatsPerRow, hall.id);
+  selectedSeatKeys = [];
+  recommendedSeatKeys = [];
+  saveState();
+  setAdminSeatStatus(`${hall.name}已重置为初始座位状态，关联的有效订单已关闭。`, "success");
+  renderCurrentHall();
+  renderAdminDashboard();
+}
+
+function renderAdminOrders() {
+  const orders = state.orders;
+  dom.adminOrderSummary.textContent = `${orders.length} 笔`;
+  if (!orders.length) {
+    dom.adminOrderList.innerHTML = '<p class="order-empty">暂无订单记录。</p>';
+    return;
+  }
+
+  dom.adminOrderList.innerHTML = orders.map((order) => {
+    const statusCode = order.statusCode || getOrderStatusCode(order.status);
+    const action = statusCode === ORDER_STATUS.reserved
+      ? `<button class="ghost-btn" type="button" data-admin-order-action="cancel" data-order-no="${escapeHtml(order.orderNo)}">取消预订</button>`
+      : statusCode === ORDER_STATUS.purchased
+        ? `<button class="ghost-btn" type="button" data-admin-order-action="refund" data-order-no="${escapeHtml(order.orderNo)}">退票</button>`
+        : "";
+    return `
+      <article class="order-card admin-order-card">
+        <div class="order-card__top">
+          <strong class="order-card__number">${escapeHtml(order.orderNo)}</strong>
+          <span class="order-status-badge order-status-badge--${escapeHtml(statusCode)}">${escapeHtml(getOrderStatusLabel(statusCode))}</span>
+        </div>
+        <p class="order-card__meta">${escapeHtml(order.username || "未知用户")} · ${escapeHtml(order.hallName || "未知影厅")}</p>
+        <p class="order-card__seats">${(order.seats || []).map(escapeHtml).join("、") || "座位信息缺失"}</p>
+        <div class="order-card__footer">
+          <time class="order-card__time">${escapeHtml(formatOrderTime(order.createdAt))}</time>
+          ${action}
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function handleAdminOrderAction(event) {
+  const actionButton = event.target.closest("[data-admin-order-action]");
+  if (!actionButton || !isAdmin()) {
+    return;
+  }
+
+  const order = state.orders.find((entry) => entry.orderNo === actionButton.dataset.orderNo);
+  if (!order) {
+    return;
+  }
+
+  if (actionButton.dataset.adminOrderAction === "cancel" && order.statusCode === ORDER_STATUS.reserved) {
+    updateOrderStatus(order, ORDER_STATUS.cancelled);
+    setAdminSeatStatus(`已取消预订订单 ${order.orderNo}，座位已释放。`, "success");
+  }
+
+  if (actionButton.dataset.adminOrderAction === "refund" && order.statusCode === ORDER_STATUS.purchased) {
+    updateOrderStatus(order, ORDER_STATUS.refunded);
+    setAdminSeatStatus(`已退票订单 ${order.orderNo}，座位已释放。`, "success");
+  }
+}
+
+function renderAdminUsers() {
+  const users = state.users.filter((user) => user.role === "user");
+  dom.adminUserSummary.textContent = `${users.length} 人`;
+  if (!users.length) {
+    dom.adminUserList.innerHTML = '<p class="order-empty">暂无普通用户。</p>';
+    return;
+  }
+
+  dom.adminUserList.innerHTML = users.map((user) => `
+    <article class="admin-user-card">
+      <strong>${escapeHtml(user.displayName || user.username)}</strong>
+      <p>用户名：${escapeHtml(user.username)}</p>
+      <p>会员等级：${escapeHtml(user.memberLevel || "normal")}</p>
+      <time datetime="${escapeHtml(user.createdAt)}">注册时间：${escapeHtml(formatOrderTime(user.createdAt))}</time>
+    </article>
+  `).join("");
+}
+
+function setAdminSeatStatus(message, status = "idle") {
+  dom.adminSeatStatus.textContent = message;
+  dom.adminSeatStatus.className = "admin-status";
+  if (status !== "idle") {
+    dom.adminSeatStatus.classList.add(`is-${status}`);
+  }
+}
+
+function getSeatStatusLabel(status) {
+  const labels = {
+    available: "空座",
+    sold: "已售",
+    reserved: "已预订",
+    disabled: "维修 / 禁用"
+  };
+  return labels[status] || "未知状态";
 }
 
 function renderHeatPanel(hall) {
@@ -728,9 +1075,42 @@ function buildSelectionSummary() {
 }
 
 function syncScreenState() {
-  const isLoggedIn = Boolean(getCurrentUser());
-  dom.authScreen.hidden = isLoggedIn;
-  dom.appScreen.hidden = !isLoggedIn;
+  const user = getCurrentUser();
+  if (!user) {
+    showLoginView();
+    return;
+  }
+
+  if (isAdmin()) {
+    showAdminView();
+    return;
+  }
+
+  showUserAppView();
+}
+
+function showLoginView() {
+  dom.authScreen.hidden = false;
+  dom.appScreen.hidden = true;
+  dom.adminScreen.hidden = true;
+}
+
+function showUserAppView() {
+  dom.authScreen.hidden = true;
+  dom.appScreen.hidden = false;
+  dom.adminScreen.hidden = true;
+}
+
+function showAdminView() {
+  if (!isAdmin()) {
+    setAuthMessage("无管理员权限。", "error");
+    showLoginView();
+    return;
+  }
+
+  dom.authScreen.hidden = true;
+  dom.appScreen.hidden = true;
+  dom.adminScreen.hidden = false;
 }
 
 function getSeatPalette() {
@@ -743,6 +1123,7 @@ function getSeatPalette() {
     seatSelected: styles.getPropertyValue("--seat-selected").trim() || "#f7c64c",
     seatSold: styles.getPropertyValue("--seat-sold").trim() || "#ff5f6d",
     seatReserved: styles.getPropertyValue("--seat-reserved").trim() || "#a98bff",
+    seatDisabled: styles.getPropertyValue("--seat-disabled").trim() || "#62758a",
     seatRecommendedRing: styles.getPropertyValue("--seat-recommended-ring").trim() || "#00f0ff",
     seatManualRing: styles.getPropertyValue("--seat-manual-ring").trim() || "#ffd66b",
     selectionFill: styles.getPropertyValue("--selection-fill").trim() || "rgba(84, 210, 255, 0.12)",
@@ -1047,6 +1428,8 @@ function drawSeats(hall, width, isLoggedIn, palette) {
         ? palette.seatSold
         : seatData.status === "reserved"
           ? palette.seatReserved
+          : seatData.status === "disabled"
+            ? palette.seatDisabled
           : isSelected
             ? palette.seatSelected
             : palette.seatAvailable;
@@ -1131,6 +1514,10 @@ function handleCanvasClick(event) {
     return;
   }
 
+  if (!isNormalUser()) {
+    return;
+  }
+
   const rect = dom.canvas.getBoundingClientRect();
   const logicalWidth = parseFloat(dom.canvas.style.width);
   const logicalHeight = parseFloat(dom.canvas.style.height);
@@ -1160,7 +1547,7 @@ function handleCanvasClick(event) {
 }
 
 function handleCanvasPointerDown(event) {
-  if (!getCurrentUser()) {
+  if (!isNormalUser()) {
     return;
   }
 
@@ -1399,6 +1786,11 @@ function handleRecommendSeats() {
     return;
   }
 
+  if (!isNormalUser()) {
+    setAuthMessage("管理员账号请在后台管理座位和订单。", "error");
+    return;
+  }
+
   recommendationDraft = readRecommendationDraftFromDOM();
   const validation = validateRecommendationDraft(recommendationDraft);
 
@@ -1457,6 +1849,10 @@ function handleClearRecommendation() {
 }
 
 function handleUserRating(rating) {
+  if (!isNormalUser()) {
+    return;
+  }
+
   userSeatRating = userSeatRating === rating ? 0 : rating;
   updateExperienceScore(state.halls[selectedHallId]);
 }
@@ -2329,9 +2725,10 @@ function syncCurrentUserUI() {
   const user = getCurrentUser();
   dom.currentUserName.textContent = user ? user.displayName : "未登录";
   dom.currentUserRole.textContent = user ? roleLabel(user.role) : "访客";
-  dom.currentUserStatus.textContent = user ? "已解锁选座台" : "请先登录";
+  dom.currentUserStatus.textContent = isNormalUser() ? "已解锁选座台" : "请先登录";
   dom.heroUserName.textContent = user ? user.displayName : "未登录";
   dom.heroUserRole.textContent = user ? roleLabel(user.role) : "访客";
+  dom.adminUserName.textContent = isAdmin() ? (user.displayName || user.username) : "管理员";
 }
 
 function setAuthMessage(message, type) {
@@ -2348,11 +2745,65 @@ function formatSeatLabel(seatKey) {
 }
 
 function getCurrentUser() {
-  return state.users.find((user) => user.id === state.currentUserId) || null;
+  const session = readCurrentUserSession();
+  const sessionUser = session
+    ? state.users.find((user) => user.id === session.id && user.role === session.role)
+    : null;
+
+  if (sessionUser && !sessionUser.disabled) {
+    return sessionUser;
+  }
+
+  const legacyUser = state.users.find((user) => user.id === state.currentUserId && !user.disabled) || null;
+  if (legacyUser) {
+    persistCurrentUserSession(legacyUser);
+  }
+
+  return legacyUser;
+}
+
+function isAdmin() {
+  const user = getCurrentUser();
+  return Boolean(user && user.role === "admin");
+}
+
+function isNormalUser() {
+  const user = getCurrentUser();
+  return Boolean(user && user.role === "user");
+}
+
+function setCurrentUser(user) {
+  state.currentUserId = user.id;
+  persistCurrentUserSession(user);
+  saveState();
+}
+
+function clearCurrentUser() {
+  state.currentUserId = null;
+  localStorage.removeItem(CURRENT_USER_STORAGE_KEY);
+}
+
+function persistCurrentUserSession(user) {
+  localStorage.setItem(CURRENT_USER_STORAGE_KEY, JSON.stringify({
+    id: user.id,
+    username: user.username,
+    role: user.role,
+    memberLevel: user.memberLevel,
+    loginAt: new Date().toISOString()
+  }));
+}
+
+function readCurrentUserSession() {
+  try {
+    const saved = localStorage.getItem(CURRENT_USER_STORAGE_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch (error) {
+    return null;
+  }
 }
 
 function roleLabel(role) {
-  return role === "admin" ? "管理员" : "会员";
+  return role === "admin" ? "管理员" : "普通会员";
 }
 
 function loadState() {
@@ -2391,12 +2842,103 @@ function normalizeState(savedState) {
 
   return {
     ...savedState,
+    users: Array.isArray(savedState.users) ? savedState.users.map(normalizeUser) : [],
     orders: normalizedOrders
   };
 }
 
 function saveState() {
+  state.users = state.users.map(normalizeUser);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(state.users));
+}
+
+function initializeUserData() {
+  const storedUsers = readStoredUsers();
+  state.users = mergeUsers(state.users, storedUsers);
+  initDefaultAdmin();
+
+  const legacyCurrentUser = state.users.find((user) => user.id === state.currentUserId);
+  if (!readCurrentUserSession() && legacyCurrentUser) {
+    persistCurrentUserSession(legacyCurrentUser);
+  }
+
+  saveState();
+}
+
+function readStoredUsers() {
+  try {
+    const saved = localStorage.getItem(USER_STORAGE_KEY);
+    const users = saved ? JSON.parse(saved) : [];
+    return Array.isArray(users) ? users.map(normalizeUser) : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function mergeUsers(...collections) {
+  const usersByUsername = new Map();
+
+  collections.flat().filter(Boolean).forEach((entry) => {
+    const user = normalizeUser(entry);
+    if (!user.username) {
+      return;
+    }
+
+    usersByUsername.set(user.username.toLowerCase(), user);
+  });
+
+  return [...usersByUsername.values()];
+}
+
+function normalizeUser(user) {
+  const username = String(user?.username || "").trim();
+  const role = user?.role === "admin" ? "admin" : "user";
+  const isLegacyDefaultAdmin = username === "admin"
+    && role === "admin"
+    && user?.id === "admin_001"
+    && user?.password === "admin123";
+
+  return {
+    id: isLegacyDefaultAdmin ? "admin-001" : String(user?.id || `user-${Date.now()}`),
+    username,
+    displayName: String(user?.displayName || (role === "admin" ? "系统管理员" : username)),
+    password: isLegacyDefaultAdmin ? "Admin@123" : String(user?.password || ""),
+    role,
+    memberLevel: role === "admin" ? "admin" : (user?.memberLevel === "vip" ? "vip" : "normal"),
+    createdAt: user?.createdAt || new Date().toISOString(),
+    disabled: Boolean(user?.disabled)
+  };
+}
+
+function initDefaultAdmin() {
+  const adminUser = state.users.find((user) => user.username.toLowerCase() === "admin");
+  if (adminUser && adminUser.role === "admin") {
+    return;
+  }
+
+  if (adminUser) {
+    Object.assign(adminUser, {
+      id: "admin-001",
+      displayName: "系统管理员",
+      password: "Admin@123",
+      role: "admin",
+      memberLevel: "admin",
+      disabled: false
+    });
+    return;
+  }
+
+  state.users.push({
+    id: "admin-001",
+    username: "admin",
+    displayName: "系统管理员",
+    password: "Admin@123",
+    role: "admin",
+    memberLevel: "admin",
+    createdAt: new Date().toISOString(),
+    disabled: false
+  });
 }
 
 function loadAccessibilityState() {
@@ -2432,16 +2974,7 @@ function createDefaultAccessibilityState() {
 function createInitialState() {
   return {
     currentUserId: null,
-    users: [
-      {
-        id: "admin_001",
-        username: "admin",
-        displayName: "系统管理员",
-        password: "admin123",
-        role: "admin",
-        createdAt: "2026-07-21T00:00:00.000Z"
-      }
-    ],
+    users: [],
     orders: [],
     halls: hallsConfig.reduce((accumulator, hall) => {
       accumulator[hall.id] = {

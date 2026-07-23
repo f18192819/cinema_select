@@ -67,7 +67,7 @@
             <input type="password" name="password" placeholder="请输入密码" autocomplete="current-password" required />
           </label>
           <button type="submit" class="primary-btn">进入选座台</button>
-          <p class="auth-tip">默认管理员账号：<code>admin</code> / <code>admin123</code></p>
+          <p class="auth-tip">管理员测试账号：<code>admin</code> / <code>Admin@123</code></p>
         </form>
 
         <form class="auth-form" id="registerForm" autocomplete="on">
@@ -210,6 +210,7 @@
             <span><i class="legend__dot legend__dot--selected"></i>选中未售</span>
             <span><i class="legend__dot legend__dot--sold"></i>已售</span>
             <span><i class="legend__dot legend__dot--reserved"></i>已预订</span>
+            <span><i class="legend__dot legend__dot--disabled"></i>维修 / 禁用</span>
             <span><i class="legend__ring legend__ring--manual"></i>手动选择</span>
             <span><i class="legend__ring"></i>推荐座位</span>
           </div>
@@ -369,6 +370,113 @@
             <canvas id="seatCanvas" width="1200" height="760" aria-label="影院座位图"></canvas>
           </div>
         </section>
+      </main>
+    </section>
+
+    <section class="admin-screen" id="adminScreen" hidden>
+      <header class="hero hero--app">
+        <div class="hero__copy">
+          <p class="eyebrow">ADMIN CONTROL CENTER</p>
+          <h1>影院管理后台</h1>
+          <p class="hero__lead">统一管理影厅座位、全部订单与普通用户数据。座位状态调整会立即同步到用户端。</p>
+        </div>
+        <div class="hero__metrics hero__metrics--app">
+          <article class="metric-card">
+            <span class="metric-card__label">当前管理员</span>
+            <strong class="metric-card__value" id="adminUserName">管理员</strong>
+          </article>
+          <article class="metric-card">
+            <span class="metric-card__label">后台状态</span>
+            <strong class="metric-card__value">已授权</strong>
+          </article>
+          <article class="metric-card">
+            <button class="ghost-btn ghost-btn--wide" id="adminLogoutBtn" type="button">退出登录</button>
+          </article>
+        </div>
+      </header>
+
+      <main class="admin-workspace">
+        <section class="admin-main-panel glass-card">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-heading__tag">SYSTEM OVERVIEW</p>
+              <h2>后台概览</h2>
+            </div>
+            <span class="panel-heading__hint">管理员账号仅由系统初始化创建</span>
+          </div>
+
+          <div class="admin-metrics">
+            <article class="summary-card">
+              <span>影厅数量</span>
+              <strong id="adminHallCount">0</strong>
+            </article>
+            <article class="summary-card">
+              <span>订单数量</span>
+              <strong id="adminOrderCount">0</strong>
+            </article>
+            <article class="summary-card">
+              <span>用户数量</span>
+              <strong id="adminUserCount">0</strong>
+            </article>
+          </div>
+
+          <section class="admin-section">
+            <div class="score-panel__head">
+              <div>
+                <p class="panel-heading__tag">HALL MANAGEMENT</p>
+                <h3>影厅与座位管理</h3>
+              </div>
+              <span class="panel-heading__hint">选择状态后点击座位即可修改</span>
+            </div>
+
+            <div class="hall-tabs" id="adminHallTabs" aria-label="后台影厅切换"></div>
+            <div class="admin-seat-controls">
+              <label class="field">
+                <span>点击座位后设置为</span>
+                <select id="adminSeatStatusSelect">
+                  <option value="available">空座</option>
+                  <option value="sold">已售</option>
+                  <option value="disabled">维修 / 禁用</option>
+                </select>
+              </label>
+              <button class="ghost-btn ghost-btn--compact" id="adminResetHallBtn" type="button">重置当前影厅</button>
+            </div>
+            <p class="admin-status" id="adminSeatStatus" aria-live="polite">请选择影厅和目标状态后点击座位。</p>
+            <div class="legend admin-legend">
+              <span><i class="legend__dot legend__dot--available"></i>空座</span>
+              <span><i class="legend__dot legend__dot--sold"></i>已售</span>
+              <span><i class="legend__dot legend__dot--reserved"></i>已预订</span>
+              <span><i class="legend__dot legend__dot--disabled"></i>维修 / 禁用</span>
+            </div>
+            <div class="canvas-frame admin-canvas-frame">
+              <canvas id="adminSeatCanvas" width="920" height="610" aria-label="管理员座位管理图"></canvas>
+            </div>
+          </section>
+        </section>
+
+        <aside class="admin-side-panel">
+          <section class="admin-section glass-card">
+            <div class="score-panel__head">
+              <div>
+                <p class="panel-heading__tag">ORDER MANAGEMENT</p>
+                <h3>全部订单</h3>
+              </div>
+              <span class="panel-heading__hint" id="adminOrderSummary">0 笔</span>
+            </div>
+            <div class="admin-list" id="adminOrderList"></div>
+          </section>
+
+          <section class="admin-section glass-card">
+            <div class="score-panel__head">
+              <div>
+                <p class="panel-heading__tag">USER MANAGEMENT</p>
+                <h3>普通用户</h3>
+              </div>
+              <span class="panel-heading__hint" id="adminUserSummary">0 人</span>
+            </div>
+            <div class="admin-list" id="adminUserList"></div>
+          </section>
+        </aside>
       </main>
     </section>
   </div>

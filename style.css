@@ -15,6 +15,7 @@
   --seat-selected: #f7c64c;
   --seat-sold: #ff5f6d;
   --seat-reserved: #a98bff;
+  --seat-disabled: #62758a;
   --seat-recommended-ring: #00f0ff;
   --seat-recommended-glow: rgba(0, 240, 255, 0.18);
   --seat-manual-ring: #ffd66b;
@@ -131,7 +132,10 @@ body.mode-large-text .heat-panel__description,
 body.mode-large-text .heat-legend,
 body.mode-large-text .heat-source-stat,
 body.mode-large-text .heat-panel__status,
-body.mode-large-text .heat-toggle {
+body.mode-large-text .heat-toggle,
+body.mode-large-text .admin-status,
+body.mode-large-text .admin-user-card,
+body.mode-large-text .admin-order-card {
   font-size: 1.25rem;
 }
 
@@ -160,6 +164,7 @@ body.mode-high-contrast {
   --seat-selected: #ffe066;
   --seat-sold: #ff7d8a;
   --seat-reserved: #c2a8ff;
+  --seat-disabled: #aeb8c4;
   --seat-recommended-ring: #00f0ff;
   --seat-recommended-glow: rgba(0, 240, 255, 0.3);
   --seat-manual-ring: #ffe066;
@@ -185,6 +190,7 @@ body.mode-colorblind {
   --seat-selected: #ffb020;
   --seat-sold: #7b8794;
   --seat-reserved: #a259ff;
+  --seat-disabled: #59636f;
   --seat-recommended-ring: #14d5ff;
   --seat-recommended-glow: rgba(20, 213, 255, 0.2);
   --seat-manual-ring: #ffb020;
@@ -205,7 +211,10 @@ body.mode-high-contrast .admin-note,
 body.mode-high-contrast .canvas-frame,
 body.mode-high-contrast .accessibility-toggle,
 body.mode-high-contrast .heat-panel,
-body.mode-high-contrast .heat-source-stat {
+body.mode-high-contrast .heat-source-stat,
+body.mode-high-contrast .admin-section,
+body.mode-high-contrast .admin-user-card,
+body.mode-high-contrast .admin-status {
   background: rgba(0, 0, 0, 0.82);
   border-color: rgba(255, 255, 255, 0.46);
 }
@@ -1014,6 +1023,10 @@ body.mode-high-contrast .heat-source-stat {
   background: var(--seat-reserved);
 }
 
+.legend__dot--disabled {
+  background: var(--seat-disabled);
+}
+
 .legend__ring {
   width: 12px;
   height: 12px;
@@ -1045,6 +1058,121 @@ body.mode-high-contrast .heat-source-stat {
     radial-gradient(circle at top center, rgba(84, 210, 255, 0.14), transparent 20%),
     linear-gradient(180deg, rgba(0, 8, 20, 0.74), rgba(4, 16, 31, 0.94));
   padding: 18px;
+}
+
+.admin-screen {
+  min-height: calc(100vh - 72px);
+}
+
+.admin-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.admin-main-panel {
+  padding: 28px;
+}
+
+.admin-side-panel {
+  display: grid;
+  gap: 24px;
+}
+
+.admin-section {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-side-panel .admin-section {
+  margin-top: 0;
+}
+
+.admin-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-seat-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.admin-seat-controls .ghost-btn {
+  min-height: 48px;
+}
+
+.admin-status {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(84, 210, 255, 0.22);
+  border-radius: var(--radius-md);
+  background: rgba(84, 210, 255, 0.08);
+  color: var(--text-soft);
+  line-height: 1.7;
+}
+
+.admin-status.is-success {
+  border-color: rgba(45, 223, 136, 0.3);
+  background: rgba(45, 223, 136, 0.1);
+  color: #bff7da;
+}
+
+.admin-status.is-error {
+  border-color: rgba(255, 95, 109, 0.3);
+  background: rgba(255, 95, 109, 0.1);
+  color: #ffb6be;
+}
+
+.admin-legend {
+  margin-bottom: 14px;
+}
+
+.admin-canvas-frame {
+  overflow-x: auto;
+}
+
+#adminSeatCanvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.2));
+}
+
+.admin-list {
+  display: grid;
+  gap: 12px;
+  max-height: 560px;
+  overflow: auto;
+}
+
+.admin-user-card {
+  padding: 15px;
+  border: 1px solid rgba(118, 182, 255, 0.16);
+  border-radius: var(--radius-md);
+  background: rgba(0, 8, 20, 0.3);
+}
+
+.admin-user-card strong {
+  display: block;
+}
+
+.admin-user-card p,
+.admin-user-card time {
+  display: block;
+  margin: 8px 0 0;
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .heat-panel {
@@ -1183,7 +1311,8 @@ body.mode-high-contrast .heat-source-stat {
 
 @media (max-width: 1080px) {
   .hero,
-  .workspace {
+  .workspace,
+  .admin-workspace {
     grid-template-columns: 1fr;
   }
 
@@ -1202,6 +1331,10 @@ body.mode-high-contrast .heat-source-stat {
   .order-actions,
   .heat-source-stats {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .admin-metrics {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
@@ -1228,6 +1361,11 @@ body.mode-high-contrast .heat-source-stat {
   .recommend-actions,
   .order-actions,
   .heat-source-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-metrics,
+  .admin-seat-controls {
     grid-template-columns: 1fr;
   }
 

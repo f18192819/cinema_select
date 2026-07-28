@@ -49,6 +49,14 @@ const TICKET_TYPE_CONFIG = {
 const dom = {
   authScreen: document.getElementById("authScreen"),
   appScreen: document.getElementById("appScreen"),
+  accessibilityMenuBtn: document.getElementById("accessibilityMenuBtn"),
+  accessibilityMenu: document.getElementById("accessibilityMenu"),
+  accessibilityMenuCloseBtn: document.getElementById("accessibilityMenuCloseBtn"),
+  userAppHeader: document.getElementById("userAppHeader"),
+  userWorkspace: document.getElementById("userWorkspace"),
+  orderScreen: document.getElementById("orderScreen"),
+  orderPageTitle: document.getElementById("orderPageTitle"),
+  backToSeatsBtn: document.getElementById("backToSeatsBtn"),
   adminScreen: document.getElementById("adminScreen"),
   loginForm: document.getElementById("loginForm"),
   registerForm: document.getElementById("registerForm"),
@@ -91,6 +99,7 @@ const dom = {
   voiceToggle: document.getElementById("voiceToggle"),
   voicePurchaseDemoBtn: document.getElementById("voicePurchaseDemoBtn"),
   accessibilityStatus: document.getElementById("accessibilityStatus"),
+  viewOrdersBtn: document.getElementById("viewOrdersBtn"),
   reserveOrderBtn: document.getElementById("reserveOrderBtn"),
   purchaseOrderBtn: document.getElementById("purchaseOrderBtn"),
   orderStatus: document.getElementById("orderStatus"),
@@ -198,6 +207,12 @@ function bindEvents() {
   dom.colorblindToggle.addEventListener("click", () => handleAccessibilityToggle("colorblindFriendly"));
   dom.voiceToggle.addEventListener("click", () => handleAccessibilityToggle("voicePrompt"));
   dom.voicePurchaseDemoBtn.addEventListener("click", handleVoicePurchaseDemo);
+  dom.accessibilityMenuBtn.addEventListener("click", handleAccessibilityMenuToggle);
+  dom.accessibilityMenuCloseBtn.addEventListener("click", () => setAccessibilityMenuOpen(false, true));
+  document.addEventListener("click", handleAccessibilityDocumentClick);
+  document.addEventListener("keydown", handleAccessibilityDocumentKeyDown);
+  dom.viewOrdersBtn.addEventListener("click", handleOpenOrderPage);
+  dom.backToSeatsBtn.addEventListener("click", handleReturnToMainPage);
   dom.reserveOrderBtn.addEventListener("click", () => handleCreateOrder(ORDER_STATUS.reserved));
   dom.purchaseOrderBtn.addEventListener("click", () => handleCreateOrder(ORDER_STATUS.purchased));
   dom.orderList.addEventListener("click", handleOrderListAction);
@@ -381,6 +396,46 @@ function renderSeatCanvasForCurrentView() {
   renderSeatCanvas(hall, Boolean(currentUser && currentUser.role === "user"));
 }
 
+function handleAccessibilityMenuToggle() {
+  setAccessibilityMenuOpen(dom.accessibilityMenu.hidden);
+}
+
+function handleAccessibilityDocumentClick(event) {
+  if (
+    dom.accessibilityMenu.hidden ||
+    dom.accessibilityMenu.contains(event.target) ||
+    dom.accessibilityMenuBtn.contains(event.target)
+  ) {
+    return;
+  }
+
+  setAccessibilityMenuOpen(false);
+}
+
+function handleAccessibilityDocumentKeyDown(event) {
+  if (event.key !== "Escape" || dom.accessibilityMenu.hidden) {
+    return;
+  }
+
+  event.preventDefault();
+  setAccessibilityMenuOpen(false, true);
+}
+
+function setAccessibilityMenuOpen(isOpen, restoreFocus = false) {
+  dom.accessibilityMenu.hidden = !isOpen;
+  dom.accessibilityMenuBtn.setAttribute("aria-expanded", String(isOpen));
+
+  if (isOpen) {
+    window.requestAnimationFrame(() => dom.accessibilityMenuCloseBtn.focus({ preventScroll: true }));
+    return;
+  }
+
+  if (restoreFocus) {
+    dom.accessibilityMenuBtn.focus({ preventScroll: true });
+  }
+}
+
+
 function handleAccessibilityToggle(settingKey) {
   accessibilityState = {
     ...accessibilityState,
@@ -401,6 +456,36 @@ function handleVoicePurchaseDemo() {
   renderAccessibilityState();
 }
 
+function handleOpenOrderPage() {
+  if (!isNormalUser()) {
+    return;
+  }
+
+  renderOrderCenter();
+  setUserSubpage("orders");
+}
+
+function handleReturnToMainPage() {
+  setUserSubpage("main");
+}
+
+function setUserSubpage(pageName, shouldFocus = true) {
+  setAccessibilityMenuOpen(false);
+  const showingOrders = pageName === "orders";
+  dom.userAppHeader.hidden = showingOrders;
+  dom.userWorkspace.hidden = showingOrders;
+  dom.orderScreen.hidden = !showingOrders;
+
+  if (!shouldFocus) {
+    return;
+  }
+
+  window.scrollTo({ top: 0, behavior: "auto" });
+  const focusTarget = showingOrders ? dom.orderPageTitle : dom.viewOrdersBtn;
+  window.requestAnimationFrame(() => focusTarget.focus({ preventScroll: true }));
+}
+
+
 function handleCreateOrder(statusCode) {
   const currentUser = getCurrentUser();
   if (!currentUser) {
@@ -414,7 +499,7 @@ function handleCreateOrder(statusCode) {
   }
 
   if (!selectedSeatKeys.length) {
-    setOrderStatus("请先选好座位，我们就能继续为你预订或购票。", "error");
+    setOrderStatus("请先选好座位，我们就能继续为你预订并完成购票。", "error");
     return;
   }
 
@@ -586,7 +671,7 @@ function renderOrderCenter() {
 
   dom.orderCount.textContent = `${orders.length} 笔`;
   if (!orders.length) {
-    dom.orderList.innerHTML = '<p class="order-empty">还没有订单。选好座位后，可以在这里预订或直接购票。</p>';
+    dom.orderList.innerHTML = '<p class="order-empty">还没有订单。返回选座主页挑好座位后，就可以预订并购买。</p>';
     return;
   }
 
@@ -711,6 +796,15 @@ function renderAccessibilityState() {
   const voiceSupport = "speechSynthesis" in window
     ? "这个浏览器可以使用语音播报。"
     : "抱歉，这个浏览器暂不支持语音播报。";
+
+  const hasActiveSettings = Boolean(
+    activeModes.length || accessibilityState.voicePrompt
+  );
+  dom.accessibilityMenuBtn.classList.toggle("has-active-setting", hasActiveSettings);
+  dom.accessibilityMenuBtn.setAttribute(
+    "aria-label",
+    hasActiveSettings ? "无障碍模式，已有设置开启" : "无障碍模式"
+  );
 
   dom.accessibilityStatus.textContent = activeModes.length
     ? `已为你开启：${activeModes.join("、")}。语音提示${voiceLabel}。${voiceSupport}`
@@ -1279,6 +1373,7 @@ function showUserAppView() {
   dom.authScreen.hidden = true;
   dom.appScreen.hidden = false;
   dom.adminScreen.hidden = true;
+  setUserSubpage("main", false);
 }
 
 function showAdminView() {
@@ -1318,7 +1413,7 @@ function getSeatColumn(seat) {
 function getHeatBorderColor(score) {
   if (score >= 55) return "#ef4444";
   if (score >= 25) return "#facc15";
-  return "#3b82f6";
+  return "#22c55e";
 }
 
 function drawRoundedRectPath(context, left, top, width, height, radius) {
@@ -1654,7 +1749,8 @@ function drawCanvasChrome(width, height, hall, isLoggedIn, palette) {
   ctx.textAlign = "center";
   ctx.fillText(`${hall.name} / ${hall.seats.length} SEATS`, width / 2, 42);
 
-  ctx.font = `${14 * fontScale}px 'Noto Sans SC', sans-serif`;
+  const canvasHintFontSize = accessibilityState.largeText ? 26 : 14;
+  ctx.font = `${canvasHintFontSize}px 'Noto Sans SC', sans-serif`;
   ctx.fillStyle = palette.textSoft;
   ctx.fillText(
     isLoggedIn ? "点击座位即可选择或调整" : "登录后即可开始选座",
@@ -3015,11 +3111,16 @@ function describeCenterTone(startSeat, seatCount, seatsPerRow) {
 
 function syncCurrentUserUI() {
   const user = getCurrentUser();
+  const headerUserName = user ? user.username : "未登录";
+  const headerRole = user ? roleLabel(user.role) : "访客";
+
   dom.currentUserName.textContent = user ? user.displayName : "未登录";
-  dom.currentUserRole.textContent = user ? roleLabel(user.role) : "访客";
+  dom.currentUserRole.textContent = headerRole;
   dom.currentUserStatus.textContent = isNormalUser() ? "已解锁选座台" : "请先登录";
-  dom.heroUserName.textContent = user ? user.displayName : "未登录";
-  dom.heroUserRole.textContent = user ? roleLabel(user.role) : "访客";
+  dom.heroUserName.textContent = headerUserName;
+  dom.heroUserName.title = headerUserName;
+  dom.heroUserName.setAttribute("aria-label", `用户名：${headerUserName}`);
+  dom.heroUserRole.textContent = headerRole;
   dom.adminUserName.textContent = isAdmin() ? (user.displayName || user.username) : "管理员";
 }
 

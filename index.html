@@ -95,26 +95,86 @@
     </section>
 
     <section class="app-screen" id="appScreen" hidden>
-      <header class="hero hero--app">
+      <header class="hero hero--app" id="userAppHeader">
         <div class="hero__copy">
           <p class="eyebrow">SMARTCINEMA · SEAT CONSOLE</p>
           <h1>今晚，坐个好位置。</h1>
           <p class="hero__lead">
-            先看看为你挑选的座位，不满意可以随时调整；确认后，就能在这里预订或购票。
+            先看看为你挑选的座位，不满意可以随时调整；确认后，即可预订并完成购票。
           </p>
         </div>
         <div class="hero__metrics hero__metrics--app">
-          <article class="metric-card">
-            <span class="metric-card__label">当前用户</span>
-            <strong class="metric-card__value" id="heroUserName">未登录</strong>
+          <article class="metric-card account-summary-card" aria-label="当前账户">
+            <strong class="account-summary-card__name" id="heroUserName" title="">未登录</strong>
+            <span class="account-summary-card__role" id="heroUserRole">访客</span>
           </article>
-          <article class="metric-card">
-            <span class="metric-card__label">身份</span>
-            <strong class="metric-card__value" id="heroUserRole">访客</strong>
+          <article class="metric-card header-control-card">
+            <button
+              class="header-control-btn"
+              id="accessibilityMenuBtn"
+              type="button"
+              aria-expanded="false"
+              aria-controls="accessibilityMenu"
+              aria-haspopup="dialog"
+            >
+              <span class="header-control-btn__icon" aria-hidden="true">⚙</span>
+              <span>无障碍模式</span>
+            </button>
           </article>
-          <article class="metric-card">
-            <button class="ghost-btn ghost-btn--wide" id="logoutBtn" type="button">退出登录</button>
+          <article class="metric-card header-control-card">
+            <button class="header-control-btn header-control-btn--logout" id="logoutBtn" type="button">
+              <span>退出登录</span>
+            </button>
           </article>
+        </div>
+
+        <div class="accessibility-popover" id="accessibilityMenu" hidden>
+          <section
+            class="accessibility-panel accessibility-panel--popover"
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby="accessibilityMenuTitle"
+          >
+            <div class="score-panel__head accessibility-panel__head">
+              <div>
+                <p class="panel-heading__tag">ACCESSIBILITY</p>
+                <h3 id="accessibilityMenuTitle">无障碍模式</h3>
+              </div>
+              <button
+                class="accessibility-menu-close"
+                id="accessibilityMenuCloseBtn"
+                type="button"
+                aria-label="关闭无障碍模式菜单"
+              >×</button>
+            </div>
+
+            <div class="accessibility-grid">
+              <button class="accessibility-toggle" id="largeTextToggle" type="button" aria-pressed="false">
+                <span class="accessibility-toggle__title">大字体模式</span>
+                <span class="accessibility-toggle__desc">让文字和表单更清楚易读</span>
+              </button>
+              <button class="accessibility-toggle" id="highContrastToggle" type="button" aria-pressed="false">
+                <span class="accessibility-toggle__title">高对比度模式</span>
+                <span class="accessibility-toggle__desc">让文字、边框和功能区更醒目</span>
+              </button>
+              <button class="accessibility-toggle" id="colorblindToggle" type="button" aria-pressed="false">
+                <span class="accessibility-toggle__title">色盲友好模式</span>
+                <span class="accessibility-toggle__desc">让座位状态和高亮更容易区分</span>
+              </button>
+              <button class="accessibility-toggle" id="voiceToggle" type="button" aria-pressed="false">
+                <span class="accessibility-toggle__title">语音提示开关</span>
+                <span class="accessibility-toggle__desc">在选座、推荐和购票完成时为你播报</span>
+              </button>
+            </div>
+
+            <div class="accessibility-actions">
+              <button class="ghost-btn ghost-btn--compact" id="voicePurchaseDemoBtn" type="button">试听购票成功播报</button>
+            </div>
+
+            <div class="score-status accessibility-status" id="accessibilityStatus">
+              需要时可以开启大字、高对比度、色盲友好或语音提示。
+            </div>
+          </section>
         </div>
       </header>
 
@@ -308,16 +368,17 @@
                   <p class="panel-heading__tag">STEP 03 · CHECKOUT</p>
                   <h2>确认订单</h2>
                 </div>
-                <span class="panel-heading__hint">确认后，我们会为你保存座位状态</span>
+                <span class="panel-heading__hint">取消预订与退票进入“我的订单”查看。</span>
               </div>
 
               <div class="order-actions">
-                <button class="primary-btn primary-btn--compact" id="reserveOrderBtn" type="button">预订当前座位</button>
-                <button class="ghost-btn ghost-btn--compact" id="purchaseOrderBtn" type="button">购票当前座位</button>
+                <button class="ghost-btn ghost-btn--compact" id="viewOrdersBtn" type="button">查看我的订单</button>
+                <button class="ghost-btn ghost-btn--compact" id="reserveOrderBtn" type="button">预订当前座位</button>
+                <button class="primary-btn primary-btn--compact" id="purchaseOrderBtn" type="button">购买当前座位</button>
               </div>
 
               <div class="score-status order-status" id="orderStatus">
-                填好同行信息并选定座位后，就可以预订或直接购票。
+                填好同行信息并选定座位后，即可选择预订或购票。
               </div>
             </section>
           </section>
@@ -367,50 +428,23 @@
             </div>
           </section>
 
-          <section class="accessibility-panel glass-card">
-            <div class="score-panel__head accessibility-panel__head">
-              <div>
-                <p class="panel-heading__tag">ACCESSIBILITY</p>
-                <h3>无障碍模式</h3>
-              </div>
-              <span class="panel-heading__hint">选好后立即生效，下次也会为你保留</span>
-            </div>
-
-            <div class="accessibility-grid">
-              <button class="accessibility-toggle" id="largeTextToggle" type="button" aria-pressed="false">
-                <span class="accessibility-toggle__title">大字体模式</span>
-                <span class="accessibility-toggle__desc">让文字和表单更清楚易读</span>
-              </button>
-              <button class="accessibility-toggle" id="highContrastToggle" type="button" aria-pressed="false">
-                <span class="accessibility-toggle__title">高对比度模式</span>
-                <span class="accessibility-toggle__desc">让文字、边框和功能区更醒目</span>
-              </button>
-              <button class="accessibility-toggle" id="colorblindToggle" type="button" aria-pressed="false">
-                <span class="accessibility-toggle__title">色盲友好模式</span>
-                <span class="accessibility-toggle__desc">让座位状态和高亮更容易区分</span>
-              </button>
-              <button class="accessibility-toggle" id="voiceToggle" type="button" aria-pressed="false">
-                <span class="accessibility-toggle__title">语音提示开关</span>
-                <span class="accessibility-toggle__desc">在选座、推荐和购票完成时为你播报</span>
-              </button>
-            </div>
-
-            <div class="accessibility-actions">
-              <button class="ghost-btn ghost-btn--compact" id="voicePurchaseDemoBtn" type="button">试听购票成功播报</button>
-            </div>
-
-            <div class="score-status accessibility-status" id="accessibilityStatus">
-              需要时可以开启大字、高对比度、色盲友好或语音提示。
-            </div>
-          </section>
         </div>
+
+      </main>
+
+      <main class="order-screen" id="orderScreen" hidden>
+        <header class="order-page-header glass-card">
+          <div>
+            <p class="panel-heading__tag">ORDER CENTER</p>
+            <h1 id="orderPageTitle" tabindex="-1">我的订单</h1>
+            <p>查看预订与购票记录，也可以继续处理已有订单。</p>
+          </div>
+          <button class="ghost-btn ghost-btn--compact" id="backToSeatsBtn" type="button">返回选座主页</button>
+        </header>
 
         <section class="order-history-panel glass-card">
           <div class="order-list-heading order-list-heading--history">
-            <div>
-              <p class="panel-heading__tag">ORDER HISTORY</p>
-              <h2>我的订单</h2>
-            </div>
+            <strong>全部订单</strong>
             <span id="orderCount">0 笔</span>
           </div>
           <div class="order-list" id="orderList"></div>

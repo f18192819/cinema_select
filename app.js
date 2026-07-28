@@ -99,6 +99,12 @@ const dom = {
   heatVisibilityToggle: document.getElementById("heatVisibilityToggle"),
   heatSourceStats: document.getElementById("heatSourceStats"),
   heatStatus: document.getElementById("heatStatus"),
+  seatViewHint: document.getElementById("seatViewHint"),
+  seatViewModeBtn: document.getElementById("seatViewModeBtn"),
+  seatOverview: document.getElementById("seatOverview"),
+  seatOverviewMap: document.getElementById("seatOverviewMap"),
+  seatOverviewViewport: document.getElementById("seatOverviewViewport"),
+  seatMiniMap: document.getElementById("seatMiniMap"),
   canvas: document.getElementById("seatCanvas"),
   adminUserName: document.getElementById("adminUserName"),
   adminLogoutBtn: document.getElementById("adminLogoutBtn"),
@@ -117,6 +123,7 @@ const dom = {
 };
 
 const ctx = dom.canvas.getContext("2d");
+const miniMapCtx = dom.seatMiniMap ? dom.seatMiniMap.getContext("2d") : null;
 const adminCtx = dom.adminCanvas ? dom.adminCanvas.getContext("2d") : null;
 
 let state = loadState();
@@ -134,6 +141,15 @@ let experienceScoreState = createEmptyExperienceScoreState();
 let lastSelectionSignature = "";
 let accessibilityState = loadAccessibilityState();
 let isHeatVisible = true;
+const SEAT_ZOOM_VIEW_SIZE = 0.56;
+const seatViewModes = { small: "full", medium: "zoom", large: "zoom" };
+const seatViewports = {
+  medium: { x: 0.22, y: 0.2, width: SEAT_ZOOM_VIEW_SIZE, height: SEAT_ZOOM_VIEW_SIZE },
+  large: { x: 0.22, y: 0.2, width: SEAT_ZOOM_VIEW_SIZE, height: SEAT_ZOOM_VIEW_SIZE }
+};
+let seatCanvasLogicalSize = { width: 1200, height: 760 };
+let miniMapDragPointerId = null;
+let miniMapDragOffset = { x: SEAT_ZOOM_VIEW_SIZE / 2, y: SEAT_ZOOM_VIEW_SIZE / 2 };
 let adminRenderedSeats = [];
 
 bootstrap();
@@ -169,7 +185,8 @@ function bindEvents() {
   dom.canvas.addEventListener("mouseleave", handleCanvasPointerLeave);
   dom.canvas.addEventListener("click", handleCanvasClick);
   dom.ticketTypeSelect.addEventListener("change", handleTicketTypeChange);
-  dom.memberCountInput.addEventListener("input", handleMemberCountChange);
+  dom.memberCountInput.addEventListener("input", handleMemberCountInput);
+  dom.memberCountInput.addEventListener("change", handleMemberCountChange);
   dom.memberFields.addEventListener("input", handleAudienceInfoChange);
   dom.recommendBtn.addEventListener("click", handleRecommendSeats);
   dom.clearRecommendBtn.addEventListener("click", handleClearRecommendation);
@@ -189,6 +206,18 @@ function bindEvents() {
   dom.adminResetHallBtn.addEventListener("click", handleAdminResetHall);
   if (dom.heatVisibilityToggle) {
     dom.heatVisibilityToggle.addEventListener("change", handleHeatVisibilityChange);
+  }
+  if (dom.seatViewModeBtn) {
+    dom.seatViewModeBtn.addEventListener("click", handleSeatViewModeToggle);
+  }
+  if (dom.seatOverviewMap) {
+    dom.seatOverviewMap.addEventListener("pointerdown", handleSeatOverviewPointerDown);
+    dom.seatOverviewMap.addEventListener("pointermove", handleSeatOverviewPointerMove);
+    dom.seatOverviewMap.addEventListener("pointerup", handleSeatOverviewPointerUp);
+    dom.seatOverviewMap.addEventListener("pointercancel", handleSeatOverviewPointerUp);
+  }
+  if (dom.seatOverviewViewport) {
+    dom.seatOverviewViewport.addEventListener("keydown", handleSeatOverviewKeyDown);
   }
   window.addEventListener("smartcinema:purchase-success", handlePurchaseSuccessAnnouncement);
   window.addEventListener("resize", () => {
@@ -213,6 +242,145 @@ function handleHeatVisibilityChange(event) {
   renderCurrentHall();
 }
 
+function isSeatZoomEnabled(hall) {
+  return Boolean(hall && hall.id !== "small" && seatViewModes[hall.id] === "zoom");
+}
+
+function getSeatViewport(hall) {
+  if (!isSeatZoomEnabled(hall)) {
+    return { x: 0, y: 0, width: 1, height: 1 };
+  }
+
+  return seatViewports[hall.id];
+}
+
+function renderSeatViewControls(hall) {
+  if (!dom.seatViewModeBtn || !dom.seatOverview) {
+    return;
+  }
+
+  const supportsZoom = hall.id !== "small";
+  const zoomEnabled = supportsZoom && isSeatZoomEnabled(hall);
+  dom.seatViewModeBtn.hidden = !supportsZoom;
+  dom.seatViewModeBtn.classList.toggle("is-zoomed", zoomEnabled);
+  dom.seatViewModeBtn.setAttribute("aria-pressed", String(zoomEnabled));
+  dom.seatViewModeBtn.textContent = zoomEnabled ? "切换全局视图" : "开启局部放大";
+  dom.seatOverview.hidden = !zoomEnabled;
+  dom.canvas.parentElement.classList.toggle("is-zoomed", zoomEnabled);
+
+  if (dom.seatViewHint) {
+    dom.seatViewHint.textContent = !supportsZoom
+      ? "小厅座位较少，始终显示全厅"
+      : zoomEnabled
+        ? "局部放大模式 · 拖动左上角亮框移动区域"
+        : "全局模式 · 一次查看全部座位";
+  }
+}
+
+function handleSeatViewModeToggle() {
+  const hall = state.halls[selectedHallId];
+  if (!hall || hall.id === "small") {
+    return;
+  }
+
+  seatViewModes[hall.id] = isSeatZoomEnabled(hall) ? "full" : "zoom";
+  dragSelection = createEmptyDragSelection();
+  renderCurrentHall();
+}
+
+function handleSeatOverviewPointerDown(event) {
+  const hall = state.halls[selectedHallId];
+  if (!isSeatZoomEnabled(hall)) {
+    return;
+  }
+
+  event.preventDefault();
+  miniMapDragPointerId = event.pointerId;
+  const point = getSeatOverviewPoint(event);
+  const viewport = getSeatViewport(hall);
+  const startedOnViewport = event.target === dom.seatOverviewViewport;
+  miniMapDragOffset = startedOnViewport
+    ? { x: point.x - viewport.x, y: point.y - viewport.y }
+    : { x: viewport.width / 2, y: viewport.height / 2 };
+
+  if (dom.seatOverviewMap.setPointerCapture) {
+    dom.seatOverviewMap.setPointerCapture(event.pointerId);
+  }
+  updateSeatViewportFromOverviewPoint(hall, point);
+}
+
+function handleSeatOverviewPointerMove(event) {
+  if (miniMapDragPointerId !== event.pointerId) {
+    return;
+  }
+
+  const hall = state.halls[selectedHallId];
+  if (!isSeatZoomEnabled(hall)) {
+    return;
+  }
+
+  event.preventDefault();
+  updateSeatViewportFromOverviewPoint(hall, getSeatOverviewPoint(event));
+}
+
+function handleSeatOverviewPointerUp(event) {
+  if (miniMapDragPointerId !== event.pointerId) {
+    return;
+  }
+
+  const canReleasePointer = dom.seatOverviewMap.releasePointerCapture &&
+    (!dom.seatOverviewMap.hasPointerCapture || dom.seatOverviewMap.hasPointerCapture(event.pointerId));
+  if (canReleasePointer) {
+    dom.seatOverviewMap.releasePointerCapture(event.pointerId);
+  }
+  miniMapDragPointerId = null;
+}
+
+function handleSeatOverviewKeyDown(event) {
+  const hall = state.halls[selectedHallId];
+  if (!isSeatZoomEnabled(hall)) {
+    return;
+  }
+
+  const direction = {
+    ArrowLeft: [-1, 0],
+    ArrowRight: [1, 0],
+    ArrowUp: [0, -1],
+    ArrowDown: [0, 1]
+  }[event.key];
+  if (!direction) {
+    return;
+  }
+
+  event.preventDefault();
+  const viewport = seatViewports[hall.id];
+  const step = event.shiftKey ? 0.08 : 0.035;
+  viewport.x = clamp(viewport.x + direction[0] * step, 0, 1 - viewport.width);
+  viewport.y = clamp(viewport.y + direction[1] * step, 0, 1 - viewport.height);
+  renderSeatCanvasForCurrentView();
+}
+
+function getSeatOverviewPoint(event) {
+  const rect = dom.seatOverviewMap.getBoundingClientRect();
+  return {
+    x: clamp((event.clientX - rect.left) / rect.width, 0, 1),
+    y: clamp((event.clientY - rect.top) / rect.height, 0, 1)
+  };
+}
+
+function updateSeatViewportFromOverviewPoint(hall, point) {
+  const viewport = seatViewports[hall.id];
+  viewport.x = clamp(point.x - miniMapDragOffset.x, 0, 1 - viewport.width);
+  viewport.y = clamp(point.y - miniMapDragOffset.y, 0, 1 - viewport.height);
+  renderSeatCanvasForCurrentView();
+}
+
+function renderSeatCanvasForCurrentView() {
+  const hall = state.halls[selectedHallId];
+  const currentUser = getCurrentUser();
+  renderSeatCanvas(hall, Boolean(currentUser && currentUser.role === "user"));
+}
+
 function handleAccessibilityToggle(settingKey) {
   accessibilityState = {
     ...accessibilityState,
@@ -225,7 +393,7 @@ function handleAccessibilityToggle(settingKey) {
 
 function handleVoicePurchaseDemo() {
   if (!accessibilityState.voicePrompt) {
-    dom.accessibilityStatus.textContent = "语音提示当前处于关闭状态，请先开启后再体验购票成功播报。";
+    dom.accessibilityStatus.textContent = "语音提示还未开启。开启后，就可以试听购票完成播报。";
     return;
   }
 
@@ -236,7 +404,7 @@ function handleVoicePurchaseDemo() {
 function handleCreateOrder(statusCode) {
   const currentUser = getCurrentUser();
   if (!currentUser) {
-    setOrderStatus("请先登录后再进行预订或购票。", "error");
+    setOrderStatus("登录后，我们就能为你保留座位并完成购票。", "error");
     return;
   }
 
@@ -246,7 +414,7 @@ function handleCreateOrder(statusCode) {
   }
 
   if (!selectedSeatKeys.length) {
-    setOrderStatus("请先选择座位，再进行预订或购票。", "error");
+    setOrderStatus("请先选好座位，我们就能继续为你预订或购票。", "error");
     return;
   }
 
@@ -299,16 +467,16 @@ function handleCreateOrder(statusCode) {
   clearRecommendation({
     keepSelection: false,
     status: "idle",
-    message: "订单已创建。如需继续选座，可重新生成推荐或手动选择可用座位。",
-    summary: "暂无推荐结果。"
+    message: "这次的座位已经为你保存。还想继续观影，可以重新推荐或手动选座。",
+    summary: "填写同行信息后，即可为你推荐。"
   });
   renderOrderCenter();
   renderCurrentHall();
   renderAdminDashboard();
   setOrderStatus(
     statusCode === ORDER_STATUS.reserved
-      ? `预订成功，订单号 ${order.orderNo}，座位已锁定。`
-      : `购票成功，订单号 ${order.orderNo}，座位状态已同步更新。`,
+      ? `预订成功，已为你锁定座位。订单号：${order.orderNo}。`
+      : `购票成功，座位已经为你保留。订单号：${order.orderNo}。`,
     "success"
   );
 
@@ -323,14 +491,14 @@ function validateOrderSelection(hall, draft, selectedSeats) {
   if (selectedSeats.length !== selectedSeatKeys.length || selectedSeats.some((seat) => seat.status !== "available")) {
     return {
       valid: false,
-      message: "所选座位中存在已售或已预订座位，请重新选择。"
+      message: "抱歉，有座位刚刚已售出或被预订，请重新挑选空座。"
     };
   }
 
   if (selectedSeats.length !== draft.members.length) {
     return {
       valid: false,
-      message: `当前选择了 ${selectedSeats.length} 个座位，与${TICKET_TYPE_CONFIG[draft.ticketType].label}的 ${draft.members.length} 位观众不一致。`
+      message: `同行共 ${draft.members.length} 位，目前选了 ${selectedSeats.length} 个座位；请按人数补齐或取消多余座位。`
     };
   }
 
@@ -338,21 +506,21 @@ function validateOrderSelection(hall, draft, selectedSeats) {
   if (restriction.hasMinor && selectedSeats.some((seat) => seat.row <= 3)) {
     return {
       valid: false,
-      message: "订单中包含未满 15 岁观众，不能选择前三排座位。"
+      message: "同行人中有未满 15 岁的观众，为了更舒适地观影，请避开前 3 排。"
     };
   }
 
   if (restriction.hasSenior && selectedSeats.some((seat) => seat.row > hall.rows - 3)) {
     return {
       valid: false,
-      message: "订单中包含 60 岁以上观众，不能选择最后三排座位。"
+      message: "同行人中有 60 岁以上的观众，为了更舒适地观影，请避开最后 3 排。"
     };
   }
 
   if (draft.ticketType === "group" && !isSameRowConsecutive(selectedSeats)) {
     return {
       valid: false,
-      message: "团体票必须选择同一排连续座位，当前座位不符合规则。"
+      message: "团体票需要同排连续就坐，请为大家重新选择一组连座。"
     };
   }
 
@@ -370,20 +538,20 @@ function handleOrderListAction(event) {
   const currentUser = getCurrentUser();
 
   if (!order || !currentUser || !isNormalUser() || order.userId !== currentUser.id) {
-    setOrderStatus("订单不存在，或当前用户无权操作该订单。", "error");
+    setOrderStatus("没有找到这笔订单，或它不属于当前账号，请确认后再试。", "error");
     return;
   }
 
   if (action === "cancel" && order.statusCode === ORDER_STATUS.reserved) {
     updateOrderStatus(order, ORDER_STATUS.cancelled);
-    setOrderStatus(`已取消预订，订单号 ${order.orderNo} 的座位已释放。`, "success");
+    setOrderStatus(`预订已取消，订单 ${order.orderNo} 的座位已经释放。`, "success");
     speakMessage("预订已取消，座位已释放。");
     return;
   }
 
   if (action === "refund" && order.statusCode === ORDER_STATUS.purchased) {
     updateOrderStatus(order, ORDER_STATUS.refunded);
-    setOrderStatus(`退票成功，订单号 ${order.orderNo} 的座位已释放。`, "success");
+    setOrderStatus(`退票已完成，订单 ${order.orderNo} 的座位已经释放。`, "success");
     speakMessage("退票成功，座位已释放。");
   }
 }
@@ -418,7 +586,7 @@ function renderOrderCenter() {
 
   dom.orderCount.textContent = `${orders.length} 笔`;
   if (!orders.length) {
-    dom.orderList.innerHTML = '<p class="order-empty">暂无订单。完成选座后，可在这里预订或直接购票。</p>';
+    dom.orderList.innerHTML = '<p class="order-empty">还没有订单。选好座位后，可以在这里预订或直接购票。</p>';
     return;
   }
 
@@ -462,7 +630,7 @@ function setOrderStatus(message, status = "idle") {
 }
 
 function resetOrderStatus() {
-  setOrderStatus("请先填写观众信息并选择座位，然后进行预订或购票。");
+  setOrderStatus("填好同行信息并选定座位后，就可以预订或直接购票。");
 }
 
 function createOrderNumber() {
@@ -541,12 +709,12 @@ function renderAccessibilityState() {
 
   const voiceLabel = accessibilityState.voicePrompt ? "已开启" : "未开启";
   const voiceSupport = "speechSynthesis" in window
-    ? "当前浏览器支持语音播报。"
-    : "当前浏览器不支持语音播报。";
+    ? "这个浏览器可以使用语音播报。"
+    : "抱歉，这个浏览器暂不支持语音播报。";
 
   dom.accessibilityStatus.textContent = activeModes.length
-    ? `当前已启用：${activeModes.join("、")}。语音提示${voiceLabel}。${voiceSupport}`
-    : `当前已关闭所有无障碍增强模式。语音提示${voiceLabel}。${voiceSupport}`;
+    ? `已为你开启：${activeModes.join("、")}。语音提示${voiceLabel}。${voiceSupport}`
+    : `无障碍增强模式暂未开启。语音提示${voiceLabel}。${voiceSupport}`;
 
   if (!dom.appScreen.hidden) {
     renderCurrentHall();
@@ -595,7 +763,7 @@ function handleLogin(event) {
   );
 
   if (!user) {
-    setAuthMessage("用户名或密码错误，请重试。", "error");
+    setAuthMessage("用户名或密码不正确，请再试一次。", "error");
     return;
   }
 
@@ -619,27 +787,27 @@ function handleRegister(event) {
   const password = String(formData.get("password") || "").trim();
 
   if (!username || !password || !displayName) {
-    setAuthMessage("用户名、昵称和密码均不能为空。", "error");
+    setAuthMessage("请把用户名、昵称和密码填写完整。", "error");
     return;
   }
 
   if (username.length < 3 || username.length > 16) {
-    setAuthMessage("用户名长度需在 3 到 16 位之间。", "error");
+    setAuthMessage("用户名请使用 3–16 个字符。", "error");
     return;
   }
 
   if (password.length < 6) {
-    setAuthMessage("密码至少需要 6 位。", "error");
+    setAuthMessage("为了账号安全，密码请至少填写 6 位。", "error");
     return;
   }
 
   if (username.toLowerCase() === "admin") {
-    setAuthMessage("admin 为系统保留管理员账号，不能注册。", "error");
+    setAuthMessage("admin 是影院管理专用账号，请换一个用户名。", "error");
     return;
   }
 
   if (state.users.some((entry) => entry.username.toLowerCase() === username.toLowerCase())) {
-    setAuthMessage("该用户名已存在，请更换后重试。", "error");
+    setAuthMessage("这个用户名已经有人使用，请换一个再试。", "error");
     return;
   }
 
@@ -675,8 +843,8 @@ function handleLogout() {
   clearRecommendation({
     keepSelection: false,
     status: "idle",
-    message: "选择票型并填写观众信息后，系统会在当前影厅自动推荐符合规则的空座。",
-    summary: "暂无推荐结果。"
+    message: "选好票型并填写同行人的信息，我们会在当前影厅为你挑选合适的空座。",
+    summary: "填写同行信息后，即可为你推荐。"
   });
   renderRecommendationForm();
   syncScreenState();
@@ -703,8 +871,8 @@ function renderHallTabs() {
       clearRecommendation({
         keepSelection: false,
         status: "idle",
-        message: `已切换到${hall.name}，请重新生成推荐座位。`,
-        summary: "暂无推荐结果。"
+        message: `已经切换到${hall.name}，需要的话，我们可以按这个影厅重新为你推荐。`,
+        summary: "填写同行信息后，即可为你推荐。"
       });
       renderHallTabs();
       renderCurrentHall();
@@ -731,9 +899,14 @@ function renderCurrentHall() {
   dom.soldCount.textContent = String(soldCount);
   dom.selectedCount.textContent = String(selectedSeatKeys.length);
   dom.selectionReadout.textContent = buildSelectionSummary();
+  const recommendationIsSelected = recommendedSeatKeys.length > 0 &&
+    recommendedSeatKeys.length === selectedSeatKeys.length &&
+    recommendedSeatKeys.every((seatKey) => selectedSeatKeys.includes(seatKey));
+  dom.selectionReadout.classList.toggle("is-recommended-selection", recommendationIsSelected);
   dom.adminNote.hidden = true;
   updateExperienceScore(hall);
   renderHeatPanel(hall);
+  renderSeatViewControls(hall);
   renderSeatCanvas(hall, Boolean(currentUser && currentUser.role === "user"));
 }
 
@@ -838,8 +1011,7 @@ function renderAdminSeatCanvas() {
             : palette.seatAvailable;
 
       adminCtx.save();
-      adminCtx.beginPath();
-      adminCtx.arc(x, y, seatRadius, 0, Math.PI * 2);
+      drawRoundedSeatPath(adminCtx, x, y, seatRadius);
       adminCtx.fillStyle = fillColor;
       adminCtx.shadowColor = fillColor;
       adminCtx.shadowBlur = 7;
@@ -878,7 +1050,7 @@ function handleAdminSeatCanvasClick(event) {
   const logicalHeight = parseFloat(dom.adminCanvas.style.height);
   const pointerX = ((event.clientX - rect.left) / rect.width) * logicalWidth;
   const pointerY = ((event.clientY - rect.top) / rect.height) * logicalHeight;
-  const hitSeat = adminRenderedSeats.find((seat) => Math.hypot(pointerX - seat.x, pointerY - seat.y) <= seat.radius + 4);
+  const hitSeat = adminRenderedSeats.find((seat) => isPointInsideSeat(pointerX, pointerY, seat));
 
   if (!hitSeat) {
     return;
@@ -1048,32 +1220,40 @@ function renderHeatPanel(hall) {
   dom.heatVisibilityToggle.checked = isHeatVisible;
   dom.heatSourceStats.innerHTML = `
     <article class="heat-source-stat">
-      <span>已预订热源</span>
+      <span>附近已预订</span>
       <strong>${reservedCount} 个</strong>
     </article>
     <article class="heat-source-stat">
-      <span>已购票热源</span>
+      <span>附近已购票</span>
       <strong>${purchasedCount} 个</strong>
     </article>
   `;
   dom.heatStatus.textContent = heatSources.length
-    ? `当前${hall.name}共有 ${heatSources.length} 个热源座位，热度会在相邻 ${HEAT_RADIUS} 格范围内逐渐衰减。`
-    : "暂无预订或购买数据，热度将在用户预订或购票后自动生成。";
+    ? `${hall.name}有 ${heatSources.length} 个已预订或已购票座位；外围热度会参考它们，并向相邻 ${HEAT_RADIUS} 个座位逐渐减弱。`
+    : "这里还没有预订或购票记录；产生记录后，外围热度会随之显示。";
 }
 
 function buildSelectionSummary() {
+  const adjustmentHint = "点击可更换座位；需要多选时，请按住 Ctrl（Mac 可按 Command）再依次点击，也可以直接拖拽框选。";
+  const recommendationIsSelected = recommendedSeatKeys.length > 0 &&
+    recommendedSeatKeys.length === selectedSeatKeys.length &&
+    recommendedSeatKeys.every((seatKey) => selectedSeatKeys.includes(seatKey));
+
   if (!selectedSeatKeys.length) {
     return recommendedSeatKeys.length
-      ? "系统已生成推荐座位，青色外环表示推荐结果，金色外环表示手动修改。可点击或拖拽框选继续调整。"
-      : "尚未选择座位。点击可单选，按住 Ctrl 再点击可多选，也可在画布上拖拽框选。";
+      ? `已为你标出推荐座位：青色外环是推荐结果，金色外环是手动调整。${adjustmentHint}`
+      : `还没选座。点击可选择一个座位；需要多选时，请按住 Ctrl 再依次点击。`;
   }
 
   const seatText = selectedSeatKeys.map(formatSeatLabel).join("、");
-  return recommendedSeatKeys.length
-    ? `当前已选 ${selectedSeatKeys.length} 个座位：${seatText}。青色外环为系统推荐，金色外环为手动调整。`
-    : `已选中 ${selectedSeatKeys.length} 个座位：${seatText}。可继续点击或拖拽框选修改。`;
-}
+  if (recommendationIsSelected) {
+    return `已为你直接选中 ${selectedSeatKeys.length} 个推荐座位：${seatText}。不满意可以继续调整。`;
+  }
 
+  return recommendedSeatKeys.length
+    ? `当前已选 ${selectedSeatKeys.length} 个座位：${seatText}。青色外环是推荐座位，金色外环是你手动调整的座位。${adjustmentHint}`
+    : `当前已选 ${selectedSeatKeys.length} 个座位：${seatText}。${adjustmentHint}`;
+}
 function syncScreenState() {
   const user = getCurrentUser();
   if (!user) {
@@ -1136,10 +1316,40 @@ function getSeatColumn(seat) {
 }
 
 function getHeatBorderColor(score) {
-  if (score >= 80) return "#a855f7";
   if (score >= 55) return "#ef4444";
-  if (score >= 25) return "#f97316";
+  if (score >= 25) return "#facc15";
   return "#3b82f6";
+}
+
+function drawRoundedRectPath(context, left, top, width, height, radius) {
+  const safeRadius = Math.max(0, Math.min(radius, width / 2, height / 2));
+  context.beginPath();
+
+  if (typeof context.roundRect === "function") {
+    context.roundRect(left, top, width, height, safeRadius);
+    return;
+  }
+
+  context.moveTo(left + safeRadius, top);
+  context.lineTo(left + width - safeRadius, top);
+  context.quadraticCurveTo(left + width, top, left + width, top + safeRadius);
+  context.lineTo(left + width, top + height - safeRadius);
+  context.quadraticCurveTo(left + width, top + height, left + width - safeRadius, top + height);
+  context.lineTo(left + safeRadius, top + height);
+  context.quadraticCurveTo(left, top + height, left, top + height - safeRadius);
+  context.lineTo(left, top + safeRadius);
+  context.quadraticCurveTo(left, top, left + safeRadius, top);
+  context.closePath();
+}
+
+function drawRoundedSeatPath(context, x, y, halfSize) {
+  const size = halfSize * 2;
+  drawRoundedRectPath(context, x - halfSize, y - halfSize, size, size, Math.max(2, halfSize * 0.45));
+}
+
+function isPointInsideSeat(pointerX, pointerY, seat, padding = 4) {
+  const halfSize = seat.radius + padding;
+  return Math.abs(pointerX - seat.x) <= halfSize && Math.abs(pointerY - seat.y) <= halfSize;
 }
 
 function normalizeSeatId(seat) {
@@ -1339,7 +1549,10 @@ function renderSeatCanvas(hall, isLoggedIn) {
   const pixelRatio = window.devicePixelRatio || 1;
   const logicalWidth = Math.max(320, Math.min(1240, containerWidth));
   const logicalHeight = 760;
+  const viewport = getSeatViewport(hall);
+  const zoomEnabled = isSeatZoomEnabled(hall);
 
+  seatCanvasLogicalSize = { width: logicalWidth, height: logicalHeight };
   canvas.width = logicalWidth * pixelRatio;
   canvas.height = logicalHeight * pixelRatio;
   canvas.style.width = `${logicalWidth}px`;
@@ -1348,9 +1561,70 @@ function renderSeatCanvas(hall, isLoggedIn) {
 
   const palette = getSeatPalette();
   ctx.clearRect(0, 0, logicalWidth, logicalHeight);
+  ctx.save();
+  if (zoomEnabled) {
+    const scale = 1 / viewport.width;
+    ctx.scale(scale, scale);
+    ctx.translate(-viewport.x * logicalWidth, -viewport.y * logicalHeight);
+  }
   drawCanvasChrome(logicalWidth, logicalHeight, hall, isLoggedIn, palette);
   renderedSeats = drawSeats(hall, logicalWidth, isLoggedIn, palette);
   drawDragSelectionOverlay(palette);
+  ctx.restore();
+  renderSeatMiniMap(hall, palette);
+}
+
+function renderSeatMiniMap(hall, palette) {
+  if (!miniMapCtx || !dom.seatMiniMap || !dom.seatOverviewViewport || !isSeatZoomEnabled(hall)) {
+    return;
+  }
+
+  const pixelRatio = window.devicePixelRatio || 1;
+  const logicalWidth = Math.max(110, dom.seatMiniMap.clientWidth || 128);
+  const logicalHeight = Math.max(42, dom.seatMiniMap.clientHeight || 48);
+  dom.seatMiniMap.width = logicalWidth * pixelRatio;
+  dom.seatMiniMap.height = logicalHeight * pixelRatio;
+  miniMapCtx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  miniMapCtx.clearRect(0, 0, logicalWidth, logicalHeight);
+  miniMapCtx.fillStyle = "#101722";
+  miniMapCtx.fillRect(0, 0, logicalWidth, logicalHeight);
+
+  const screenWidth = logicalWidth * 0.52;
+  miniMapCtx.strokeStyle = "rgba(111, 231, 255, 0.7)";
+  miniMapCtx.lineWidth = 1;
+  miniMapCtx.beginPath();
+  miniMapCtx.moveTo((logicalWidth - screenWidth) / 2, 7);
+  miniMapCtx.lineTo((logicalWidth + screenWidth) / 2, 7);
+  miniMapCtx.stroke();
+
+  const seatWidth = hall.seatsPerRow >= 30 ? 2.1 : 2.7;
+  const seatHeight = 2.2;
+  renderedSeats.forEach((seat) => {
+    const isSelected = selectedSeatKeys.includes(seat.key);
+    const isRecommended = recommendedSeatKeys.includes(seat.key);
+    const fillColor = seat.status === "sold"
+      ? palette.seatSold
+      : seat.status === "reserved"
+        ? palette.seatReserved
+        : seat.status === "disabled"
+          ? palette.seatDisabled
+          : isSelected
+            ? palette.seatSelected
+            : isRecommended
+              ? palette.seatRecommendedRing
+              : palette.seatAvailable;
+    const x = (seat.x / seatCanvasLogicalSize.width) * logicalWidth;
+    const y = (seat.y / seatCanvasLogicalSize.height) * logicalHeight;
+    miniMapCtx.fillStyle = fillColor;
+    drawRoundedRectPath(miniMapCtx, x - seatWidth / 2, y - seatHeight / 2, seatWidth, seatHeight, 0.8);
+    miniMapCtx.fill();
+  });
+
+  const viewport = getSeatViewport(hall);
+  dom.seatOverviewViewport.style.left = `${viewport.x * 100}%`;
+  dom.seatOverviewViewport.style.top = `${viewport.y * 100}%`;
+  dom.seatOverviewViewport.style.width = `${viewport.width * 100}%`;
+  dom.seatOverviewViewport.style.height = `${viewport.height * 100}%`;
 }
 
 function drawCanvasChrome(width, height, hall, isLoggedIn, palette) {
@@ -1383,7 +1657,7 @@ function drawCanvasChrome(width, height, hall, isLoggedIn, palette) {
   ctx.font = `${14 * fontScale}px 'Noto Sans SC', sans-serif`;
   ctx.fillStyle = palette.textSoft;
   ctx.fillText(
-    isLoggedIn ? "已登录，可点击座位进行选择" : "请先登录后再进行选座",
+    isLoggedIn ? "点击座位即可选择或调整" : "登录后即可开始选座",
     width / 2,
     height - 26
   );
@@ -1435,23 +1709,21 @@ function drawSeats(hall, width, isLoggedIn, palette) {
             : palette.seatAvailable;
 
       ctx.save();
-      ctx.beginPath();
-      ctx.arc(x, y, seatRadius, 0, Math.PI * 2);
+      drawRoundedSeatPath(ctx, x, y, seatRadius);
       ctx.fillStyle = fillColor;
       ctx.shadowColor = fillColor;
       ctx.shadowBlur = 14;
       ctx.fill();
       ctx.shadowBlur = 0;
 
-      ctx.beginPath();
       if (isHeatVisible) {
-        ctx.arc(x, y, seatRadius + 1.2, 0, Math.PI * 2);
+        drawRoundedSeatPath(ctx, x, y, seatRadius + 1.2);
         ctx.strokeStyle = heatBorderColor;
         ctx.lineWidth = Math.max(1, Math.min(2, seatRadius * 0.2));
         ctx.shadowColor = heatBorderColor;
         ctx.shadowBlur = heatScore >= 55 ? 4 : 2;
       } else {
-        ctx.arc(x, y, seatRadius, 0, Math.PI * 2);
+        drawRoundedSeatPath(ctx, x, y, seatRadius);
         ctx.strokeStyle = isLoggedIn ? "rgba(255,255,255,0.68)" : "rgba(255,255,255,0.28)";
         ctx.lineWidth = isLoggedIn ? 1.5 : 1;
       }
@@ -1460,8 +1732,7 @@ function drawSeats(hall, width, isLoggedIn, palette) {
 
       if (isRecommended) {
         ctx.save();
-        ctx.beginPath();
-        ctx.arc(x, y, seatRadius + 4, 0, Math.PI * 2);
+        drawRoundedSeatPath(ctx, x, y, seatRadius + 4);
         ctx.strokeStyle = palette.seatRecommendedRing;
         ctx.lineWidth = 2.5;
         ctx.shadowColor = palette.seatRecommendedRing;
@@ -1472,8 +1743,7 @@ function drawSeats(hall, width, isLoggedIn, palette) {
 
       if (isManualSelected) {
         ctx.save();
-        ctx.beginPath();
-        ctx.arc(x, y, seatRadius + 4, 0, Math.PI * 2);
+        drawRoundedSeatPath(ctx, x, y, seatRadius + 4);
         ctx.strokeStyle = palette.seatManualRing;
         ctx.lineWidth = 2.5;
         ctx.shadowColor = palette.seatManualRing;
@@ -1510,7 +1780,7 @@ function handleCanvasClick(event) {
 
   const currentUser = getCurrentUser();
   if (!currentUser) {
-    setAuthMessage("请先登录后再进行选座。", "error");
+    setAuthMessage("登录后即可开始选座。", "error");
     return;
   }
 
@@ -1518,16 +1788,9 @@ function handleCanvasClick(event) {
     return;
   }
 
-  const rect = dom.canvas.getBoundingClientRect();
-  const logicalWidth = parseFloat(dom.canvas.style.width);
-  const logicalHeight = parseFloat(dom.canvas.style.height);
-  const pointerX = ((event.clientX - rect.left) / rect.width) * logicalWidth;
-  const pointerY = ((event.clientY - rect.top) / rect.height) * logicalHeight;
+  const { x: pointerX, y: pointerY } = getCanvasPoint(event);
 
-  const hitSeat = renderedSeats.find((seat) => {
-    const distance = Math.hypot(pointerX - seat.x, pointerY - seat.y);
-    return distance <= seat.radius + 4;
-  });
+  const hitSeat = renderedSeats.find((seat) => isPointInsideSeat(pointerX, pointerY, seat));
 
   if (!hitSeat || hitSeat.status !== "available") {
     return;
@@ -1700,10 +1963,14 @@ function getCanvasPoint(event) {
   const rect = dom.canvas.getBoundingClientRect();
   const logicalWidth = parseFloat(dom.canvas.style.width);
   const logicalHeight = parseFloat(dom.canvas.style.height);
+  const displayX = ((event.clientX - rect.left) / rect.width) * logicalWidth;
+  const displayY = ((event.clientY - rect.top) / rect.height) * logicalHeight;
+  const hall = state.halls[selectedHallId];
+  const viewport = getSeatViewport(hall);
 
   return {
-    x: ((event.clientX - rect.left) / rect.width) * logicalWidth,
-    y: ((event.clientY - rect.top) / rect.height) * logicalHeight
+    x: viewport.x * logicalWidth + displayX * viewport.width,
+    y: viewport.y * logicalHeight + displayY * viewport.height
   };
 }
 
@@ -1751,24 +2018,42 @@ function handleTicketTypeChange() {
   clearRecommendation({
     keepSelection: true,
     status: "idle",
-    message: "票型已切换，请补充观众信息后重新生成推荐。",
-    summary: "暂无推荐结果。"
+    message: "票型已更换，补全同行信息后，我们再为你挑选座位。",
+    summary: "填写同行信息后，即可为你推荐。"
   });
   renderRecommendationForm();
   renderCurrentHall();
 }
 
+function handleMemberCountInput() {
+  const rawValue = dom.memberCountInput.value.trim();
+  if (rawValue === "") {
+    return;
+  }
+
+  const config = TICKET_TYPE_CONFIG[dom.ticketTypeSelect.value];
+  const nextCount = Number(rawValue);
+  if (!Number.isInteger(nextCount) || nextCount < config.min || nextCount > config.max) {
+    return;
+  }
+
+  handleMemberCountChange();
+}
+
 function handleMemberCountChange() {
+  const config = TICKET_TYPE_CONFIG[dom.ticketTypeSelect.value];
+  const rawValue = dom.memberCountInput.value.trim();
+  const nextCount = rawValue === "" ? config.defaultCount : Number(rawValue);
   const currentDraft = readRecommendationDraftFromDOM();
   recommendationDraft = normalizeRecommendationDraft({
     ...currentDraft,
-    memberCount: Number(dom.memberCountInput.value)
+    memberCount: nextCount
   });
   clearRecommendation({
     keepSelection: true,
     status: "idle",
-    message: "人数已更新，请重新生成推荐。",
-    summary: "暂无推荐结果。"
+    message: "同行人数已更新，重新推荐后会按新人数为你选座。",
+    summary: "填写同行信息后，即可为你推荐。"
   });
   renderRecommendationForm();
   renderCurrentHall();
@@ -1782,7 +2067,7 @@ function handleAudienceInfoChange() {
 function handleRecommendSeats() {
   const currentUser = getCurrentUser();
   if (!currentUser) {
-    setAuthMessage("请先登录后再进行选座。", "error");
+    setAuthMessage("登录后即可开始选座。", "error");
     return;
   }
 
@@ -1798,7 +2083,7 @@ function handleRecommendSeats() {
     recommendationState = {
       status: "error",
       message: validation.message,
-      summary: "未生成推荐结果。",
+      summary: "这次还没能为你推荐座位。",
       reasons: []
     };
     recommendedSeatKeys = [];
@@ -1813,7 +2098,7 @@ function handleRecommendSeats() {
     recommendationState = {
       status: "error",
       message: result.message,
-      summary: "当前没有找到符合条件的推荐座位。",
+      summary: "暂时没找到合适的连座，可以换个影厅或调整同行人数。",
       reasons: result.reasons
     };
     recommendedSeatKeys = [];
@@ -1832,7 +2117,7 @@ function handleRecommendSeats() {
   };
   renderRecommendationState();
   renderCurrentHall();
-  speakMessage(`推荐成功，已为当前观众安排${result.seatKeys.length}个座位。`);
+  speakMessage(`已经为你们挑好${result.seatKeys.length}个座位。`);
 }
 
 function handleClearRecommendation() {
@@ -1842,8 +2127,8 @@ function handleClearRecommendation() {
   clearRecommendation({
     keepSelection: true,
     status: "idle",
-    message: "已清空推荐结果，可重新生成推荐或继续手动选座。",
-    summary: "暂无推荐结果。"
+    message: "推荐已清空，你可以重新推荐，也可以继续手动选座。",
+    summary: "填写同行信息后，即可为你推荐。"
   });
   renderCurrentHall();
 }
@@ -1905,6 +2190,13 @@ function renderRecommendationForm() {
   dom.memberFields.innerHTML = recommendationDraft.members
     .map((member, index) => buildMemberFieldMarkup(recommendationDraft.ticketType, member, index))
     .join("");
+
+  const usesScrollableMembers = recommendationDraft.members.length > 3;
+  dom.memberFields.classList.toggle("is-scrollable", usesScrollableMembers);
+  dom.memberFields.setAttribute(
+    "aria-label",
+    usesScrollableMembers ? "同行成员信息，可上下滚动" : "同行成员信息"
+  );
 }
 
 function buildMemberFieldMarkup(ticketType, member, index) {
@@ -1973,8 +2265,8 @@ function readRecommendationDraftFromDOM() {
 function createEmptyRecommendationState() {
   return {
     status: "idle",
-    message: "选择票型并填写观众信息后，系统会在当前影厅自动推荐符合规则的空座。",
-    summary: "暂无推荐结果。",
+    message: "选好票型并填写同行人的信息，我们会在当前影厅为你挑选合适的空座。",
+    summary: "填写同行信息后，即可为你推荐。",
     reasons: []
   };
 }
@@ -1983,8 +2275,8 @@ function clearRecommendation(options = {}) {
   const {
     keepSelection = true,
     status = "idle",
-    message = "选择票型并填写观众信息后，系统会在当前影厅自动推荐符合规则的空座。",
-    summary = "暂无推荐结果。",
+    message = "选好票型并填写同行人的信息，我们会在当前影厅为你挑选合适的空座。",
+    summary = "填写同行信息后，即可为你推荐。",
     reasons = []
   } = options;
 
@@ -2005,7 +2297,7 @@ function createEmptyExperienceScoreState() {
     compositeScore: null,
     compositeGrade: "待评估",
     status: "idle",
-    message: "选择座位后，系统会根据距离、视角、周围空位和规则匹配情况自动计算观影体验评分。",
+    message: "选好座位后，我们会从距离、视角、周边空位和同行规则四方面提供观影参考。",
     reasons: []
   };
 }
@@ -2078,13 +2370,13 @@ function renderUserRatingState() {
   });
 
   if (!selectedSeatKeys.length) {
-    dom.userRatingText.textContent = "请先选择座位，再进行观众手动评分。";
+    dom.userRatingText.textContent = "选好座位后，就可以留下你的观影期待评分。";
     return;
   }
 
   dom.userRatingText.textContent = userSeatRating
-    ? `观众手动评分：${userSeatRating} / 5 星，系统评分与用户评分已综合计算。`
-    : "尚未评分，综合结果暂以系统评分为主。";
+    ? `你的评分是 ${userSeatRating} / 5 星，综合结果已为你更新。`
+    : "还没有你的评分，先为你展示座位参考分。";
 }
 
 function getAudienceContextForScoring() {
@@ -2125,8 +2417,8 @@ function calculateSystemExperienceScore(hall, selectedSeats, audienceContext) {
       surrounding.reason,
       ruleMatch.reason,
       userSeatRating
-        ? `综合结果已纳入观众手动评分 ${userSeatRating} / 5 星。`
-        : "当前尚未提供手动评分，综合结果暂以系统评分为主。"
+        ? `综合结果已加入你的 ${userSeatRating} / 5 星评分。`
+        : "还没有你的评分，综合结果暂按座位参考分展示。"
     ]
   };
 }
@@ -2138,11 +2430,11 @@ function calculateDistanceMetric(hall, selectedSeats) {
   const diff = Math.abs(averageRow - idealRow);
   const score = clamp(Math.round(35 * (1 - diff / maxDiff)), 0, 35);
 
-  let reason = "与银幕距离适中，对大多数观众来说观影舒适。";
+  let reason = "这组座位离银幕远近适中，大多数观众看起来会比较舒适。";
   if (averageRow <= hall.rows * 0.35) {
-    reason = "当前座位整体偏前，临场感较强，但长时间观影会更累。";
+    reason = "这组座位比较靠前，临场感更强，长时间观看可能更容易疲劳。";
   } else if (averageRow >= hall.rows * 0.8) {
-    reason = "当前座位整体偏后，视野完整，但沉浸感略弱。";
+    reason = "这组座位比较靠后，画面更完整，不过沉浸感会稍弱。";
   }
 
   return { score, reason };
@@ -2156,11 +2448,11 @@ function calculateHorizontalMetric(hall, selectedSeats) {
   const maxCenterDistance = Math.max((hall.seatsPerRow - 1) / 2, 1);
   const score = clamp(Math.round(25 * (1 - averageCenterDistance / maxCenterDistance)), 0, 25);
 
-  let reason = "横向位置接近影厅中心区，视角较为居中。";
+  let reason = "这组座位靠近影厅中间，观看视角比较居中。";
   if (averageCenterDistance > hall.seatsPerRow * 0.22) {
-    reason = "横向位置偏侧，观看时左右视角会略有倾斜。";
+    reason = "这组座位稍微偏向一侧，观看时左右视角会有一点倾斜。";
   } else if (averageCenterDistance > hall.seatsPerRow * 0.12) {
-    reason = "横向位置较为均衡，中心感良好。";
+    reason = "这组座位横向位置比较均衡，整体接近中间。";
   }
 
   return { score, reason };
@@ -2196,11 +2488,11 @@ function calculateSurroundingMetric(hall, selectedSeats) {
   const ratio = totalNeighborCount ? availableNeighborCount / totalNeighborCount : 0.5;
   const score = clamp(Math.round(ratio * 20), 0, 20);
 
-  let reason = "周围空位较多，观影时更宽松舒适。";
+  let reason = "这组座位周围空位较多，观影时会更宽松。";
   if (ratio < 0.3) {
-    reason = "周边空位较少，拥挤感会更明显。";
+    reason = "这组座位周边空位较少，观影时可能会稍显拥挤。";
   } else if (ratio < 0.55) {
-    reason = "周边空位情况一般，舒适度中等。";
+    reason = "这组座位周边还有一些空位，宽松程度适中。";
   }
 
   return { score, reason };
@@ -2211,7 +2503,7 @@ function calculateRuleMatchMetric(hall, selectedSeats, audienceContext) {
     return {
       score: 12,
       status: "warning",
-      reason: `观众信息未填写完整，年龄与票型规则先按普通成人场景估算。${audienceContext.message}`
+      reason: `同行信息还没填完整，我们暂按普通成人观影情况提供参考。${audienceContext.message}`
     };
   }
 
@@ -2221,17 +2513,17 @@ function calculateRuleMatchMetric(hall, selectedSeats, audienceContext) {
   let score = 20;
 
   if (selectedSeats.length !== draft.members.length) {
-    issues.push("当前选座数量与票型人数不一致。");
+    issues.push("座位数量和同行人数还没有对应。");
     score -= 8;
   }
 
   if (restriction.hasMinor && selectedSeats.some((seat) => seat.row <= 3)) {
-    issues.push("当前选择中包含未满 15 岁观众，但座位落在前 3 排。");
+    issues.push("同行人中有未满 15 岁的观众，请避开前 3 排。");
     score -= 8;
   }
 
   if (restriction.hasSenior && selectedSeats.some((seat) => seat.row > hall.rows - 3)) {
-    issues.push("当前选择中包含 60 岁以上观众，但座位落在最后 3 排。");
+    issues.push("同行人中有 60 岁以上的观众，请避开最后 3 排。");
     score -= 8;
   }
 
@@ -2243,7 +2535,7 @@ function calculateRuleMatchMetric(hall, selectedSeats, audienceContext) {
     return {
       score,
       status: "success",
-      reason: "当前选座符合年龄限制与票型规则。"
+      reason: "这组座位符合同行人的年龄安排和票型要求。"
     };
   }
 
@@ -2267,7 +2559,7 @@ function evaluateTicketArrangement(ticketType, selectedSeats) {
 
   if (ticketType === "individual") {
     if (sortedSeats.length !== 1) {
-      issues.push("个人票应对应 1 个座位。");
+      issues.push("个人票请保留 1 个座位。");
       penalty += 10;
     }
     return { issues, penalty };
@@ -2275,7 +2567,7 @@ function evaluateTicketArrangement(ticketType, selectedSeats) {
 
   if (ticketType === "couple") {
     if (!isSameRowConsecutive(sortedSeats)) {
-      issues.push("情侣票更适合连续双座，当前选座未保持同排连续。");
+      issues.push("情侣票推荐同排连座，这两个座位还没有相连。");
       penalty += 10;
     }
     return { issues, penalty };
@@ -2283,13 +2575,13 @@ function evaluateTicketArrangement(ticketType, selectedSeats) {
 
   if (ticketType === "family") {
     if (!isSameRowConsecutive(sortedSeats)) {
-      issues.push("家庭票优先连续就坐，当前选座连续性一般。");
+      issues.push("家庭同行推荐连座，这组座位还没有全部相连。");
       penalty += 5;
     }
 
     const averageRow = sortedSeats.reduce((sum, seat) => sum + seat.row, 0) / sortedSeats.length;
     if (averageRow < 5) {
-      issues.push("家庭票更适合中后排，当前排位略靠前。");
+      issues.push("家庭观影更推荐中后排，这组座位稍微靠前。");
       penalty += 3;
     }
 
@@ -2298,7 +2590,7 @@ function evaluateTicketArrangement(ticketType, selectedSeats) {
 
   if (ticketType === "group") {
     if (!isSameRowConsecutive(sortedSeats)) {
-      issues.push("团体票要求同排连续，当前选座不满足整组连续。");
+      issues.push("团体票需要同排连座，这组座位还没有全部相连。");
       penalty += 12;
     }
   }
@@ -2353,14 +2645,14 @@ function getExperienceGrade(score) {
 function buildScoreMessage(score, audienceContext, userRating) {
   const grade = getExperienceGrade(score);
   if (!audienceContext.valid) {
-    return `系统评分 ${score} / 100，等级为${grade}。由于观众信息不完整，年龄与票型规则按普通成人场景估算。`;
+    return `座位参考分为 ${score} / 100（${grade}）。同行信息尚未填全，目前先按普通成人观影情况计算；补充后会立即更新。`;
   }
 
   if (userRating) {
-    return `系统评分 ${score} / 100，等级为${grade}。已结合观众 ${userRating} 星手动评分生成综合结果。`;
+    return `座位参考分为 ${score} / 100（${grade}），并已结合你的 ${userRating} 星评分更新综合结果。`;
   }
 
-  return `系统评分 ${score} / 100，等级为${grade}。你还可以补充 1-5 星手动评分，查看综合结果。`;
+  return `座位参考分为 ${score} / 100（${grade}）。你也可以给出 1–5 星评分，看看更贴近自己的综合结果。`;
 }
 
 function findSeatByKey(hall, seatKey) {
@@ -2407,7 +2699,7 @@ function validateRecommendationDraft(draft) {
     if (normalizedDraft.memberCount < config.min || normalizedDraft.memberCount > config.max) {
       return {
         valid: false,
-        message: `${config.label}人数需在 ${config.min} 到 ${config.max} 人之间。`
+        message: `${config.label}支持 ${config.min}–${config.max} 人同行，请在这个范围内填写人数。`
       };
     }
   }
@@ -2415,7 +2707,7 @@ function validateRecommendationDraft(draft) {
   if (normalizedDraft.members.length !== expectedCount) {
     return {
       valid: false,
-      message: "观众信息数量与票型要求不一致，请检查后重试。"
+      message: "同行信息和票型人数没有对应，请核对后再试。"
     };
   }
 
@@ -2423,7 +2715,7 @@ function validateRecommendationDraft(draft) {
     if (!member.name) {
       return {
         valid: false,
-        message: `请填写${getMemberLabel(normalizedDraft.ticketType, index)}的姓名。`
+        message: `请补充${getMemberLabel(normalizedDraft.ticketType, index)}的姓名，方便我们为每位观众安排座位。`
       };
     }
 
@@ -2431,7 +2723,7 @@ function validateRecommendationDraft(draft) {
     if (!Number.isInteger(age) || age < 1 || age > 120) {
       return {
         valid: false,
-        message: `请填写${getMemberLabel(normalizedDraft.ticketType, index)}的有效年龄。`
+        message: `请填写${getMemberLabel(normalizedDraft.ticketType, index)}的年龄（1–120 岁），我们会据此避开不合适的排数。`
       };
     }
   }
@@ -2456,7 +2748,7 @@ function recommendSeatsForHall(hall, draft) {
   if (audience.length > hall.seatsPerRow) {
     return {
       success: false,
-      message: `${hall.name}每排最多只有 ${hall.seatsPerRow} 个座位，无法容纳当前票型人数。`,
+      message: `${hall.name}每排最多 ${hall.seatsPerRow} 个座位，暂时无法让这组同行人坐在同一排；可以换个影厅或调整人数。`,
       reasons: []
     };
   }
@@ -2464,7 +2756,7 @@ function recommendSeatsForHall(hall, draft) {
   if (restriction.minRow > restriction.maxRow) {
     return {
       success: false,
-      message: "当前年龄限制冲突，系统无法找到同时满足规则的排数。",
+      message: "同行人的年龄安排暂时找不到都合适的排数，可以调整同行组合或换个影厅。",
       reasons: []
     };
   }
@@ -2497,8 +2789,8 @@ function recommendSeatsForHall(hall, draft) {
   return {
     success: true,
     seatKeys: bestCandidate.seatKeys,
-    message: `已在${hall.name}找到符合${ticketConfig.label}规则的推荐座位，并自动高亮显示。`,
-    summary: `推荐座位：${seatLabels.join("、")}`,
+    message: `已在${hall.name}为你找到符合${ticketConfig.label}要求的座位，并在座位图中标亮。`,
+    summary: `为你推荐：${seatLabels.join("、")}`,
     reasons: buildRecommendationReasons(hall, draft.ticketType, bestCandidate, restriction)
   };
 }
@@ -2618,32 +2910,32 @@ function buildRecommendationReasons(hall, ticketType, candidate, restriction) {
   const centerTone = describeCenterTone(candidate.startSeat, candidate.seatKeys.length, hall.seatsPerRow);
 
   if (ticketType === "individual") {
-    reasons.push("优先选择了视角更稳定、距离银幕适中的单人座位。");
+    reasons.push("为你挑了距离银幕适中、视角更稳定的单人座位。");
   }
 
   if (ticketType === "couple") {
-    reasons.push("优先选择中间区域连续双座，方便情侣并排观影。");
+    reasons.push("为你们挑了靠近中间区域的连续双座，方便并排观影。");
   }
 
   if (ticketType === "family") {
-    reasons.push("优先选择中后排连续座位，方便家庭成员坐在一起并兼顾视野。");
+    reasons.push("为家人挑了中后排连座，既方便坐在一起，也兼顾观影视野。");
   }
 
   if (ticketType === "group") {
-    reasons.push("已满足团体票同排连续就坐要求，整组成员无需分开。");
+    reasons.push("这组座位同排相连，同行成员可以坐在一起。");
   }
 
   if (restriction.hasMinor) {
-    reasons.push("已避开前 3 排，确保未满 15 岁观众不被安排在前区。");
+    reasons.push("同行人中有未满 15 岁的观众，已为你避开前 3 排。");
   }
 
   if (restriction.hasSenior) {
-    reasons.push("已避开最后 3 排，照顾 60 岁以上观众的观影舒适度。");
+    reasons.push("同行人中有 60 岁以上的观众，已为你避开最后 3 排。");
   }
 
   reasons.push(`推荐位于第 ${candidate.row} 排，${rowTone}。`);
   reasons.push(centerTone);
-  reasons.push("推荐座位已自动高亮，如需调整仍可继续手动修改。");
+  reasons.push("推荐座位已经标亮；如果不合心意，直接点击座位就能调整。");
 
   return reasons;
 }
@@ -2652,23 +2944,23 @@ function buildRestrictionReasons(ticketType, restriction) {
   const reasons = [];
 
   if (ticketType === "couple") {
-    reasons.push("情侣票需要连续双座，系统会优先寻找中间区域。");
+    reasons.push("情侣票需要连续双座，我们会优先为你寻找中间区域。");
   }
 
   if (ticketType === "family") {
-    reasons.push("家庭票优先推荐连续座位，方便成员同行就坐。");
+    reasons.push("家庭票优先安排连座，方便家人坐在一起。");
   }
 
   if (ticketType === "group") {
-    reasons.push("团体票必须同排连续，无法拆分到多排或多个区域。");
+    reasons.push("团体票需要同排连续就坐，不能拆分到不同排或区域。");
   }
 
   if (restriction.hasMinor) {
-    reasons.push("当前组合包含未满 15 岁观众，前 3 排不可用。");
+    reasons.push("同行人中有未满 15 岁的观众，请避开前 3 排。");
   }
 
   if (restriction.hasSenior) {
-    reasons.push("当前组合包含 60 岁以上观众，最后 3 排不可用。");
+    reasons.push("同行人中有 60 岁以上的观众，请避开最后 3 排。");
   }
 
   return reasons;
@@ -2688,14 +2980,14 @@ function buildNoSeatMessage(hall, ticketLabel, audienceCount, restriction) {
   const ruleSuffix = ageRuleText.length ? `，并同时满足${ageRuleText.join("、")}` : "";
   const continuityText = audienceCount > 1 ? "同排连续" : "单人可用";
 
-  return `${hall.name}当前没有满足${ticketLabel}${audienceCount}人${continuityText}空座${ruleSuffix}的推荐方案，请切换影厅或调整人数后重试。`;
+  return `抱歉，${hall.name}暂时没有适合${ticketLabel}${audienceCount}人的${continuityText}座位${ruleSuffix}。可以换个影厅或调整人数，我们再帮你找找。`;
 }
 
 function describeRowTone(row, totalRows) {
   const ratio = row / totalRows;
 
   if (ratio <= 0.4) {
-    return "距离银幕偏近，但仍处于规则允许范围内";
+    return "距离银幕稍近，但仍在可选范围内";
   }
 
   if (ratio <= 0.7) {
@@ -2711,14 +3003,14 @@ function describeCenterTone(startSeat, seatCount, seatsPerRow) {
   const centerDistance = Math.abs(blockCenter - horizontalCenter);
 
   if (centerDistance <= seatsPerRow * 0.1) {
-    return "横向位置接近影厅中心区，视角较好。";
+    return "座位靠近影厅中间，观看视角会比较舒服。";
   }
 
   if (centerDistance <= seatsPerRow * 0.22) {
-    return "横向位置较为均衡，兼顾视野与舒适度。";
+    return "座位横向位置比较均衡，视野和舒适度都照顾到了。";
   }
 
-  return "虽然不在绝对中心，但仍优先保证连续性和规则匹配。";
+  return "位置不在正中心，但优先为同行人保留了连座并满足相应要求。";
 }
 
 function syncCurrentUserUI() {

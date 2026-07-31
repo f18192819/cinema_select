@@ -5257,12 +5257,6 @@ body.mode-large-text #accessibilityMenuBtn {
 
 /* Mobile-only task flow. Desktop keeps the original layout unchanged. */
 @media (max-width: 720px) {
-  #appScreen[data-mobile-flow="mode"] #userAppHeader,
-  #appScreen[data-mobile-flow="mode"] #userWorkspace,
-  #appScreen[data-mobile-flow="mode"] #orderScreen,
-  #appScreen[data-mobile-flow="recommend"] #userAppHeader,
-  #appScreen[data-mobile-flow="recommend"] .canvas-panel,
-  #appScreen[data-mobile-flow="recommend"] .insights-grid,
   #appScreen[data-mobile-flow="seats"] #userAppHeader,
   #appScreen[data-mobile-flow="seats"] .control-panel,
   #appScreen[data-mobile-flow="seats"] .checkout-panel,
@@ -5294,39 +5288,19 @@ body.mode-large-text #accessibilityMenuBtn {
   .mobile-flow-nav strong { color: #ead5a7; letter-spacing: 0.08em; }
   .mobile-flow-nav button { border: 0; color: var(--text-soft); background: transparent; font: inherit; }
 
-  .mobile-mode-card {
-    display: grid;
-    gap: 14px;
-    padding: 26px 20px;
-    border: 1px solid rgba(210, 180, 119, 0.22);
-    border-radius: 18px;
-    background: linear-gradient(145deg, rgba(210, 180, 119, 0.14), rgba(12, 12, 12, 0.94) 55%);
-  }
-
-  .mobile-mode-card h2, .mobile-mode-card p { margin: 0; }
-  .mobile-mode-card p { color: var(--text-soft); line-height: 1.6; }
-  .mobile-mode-actions { display: grid; gap: 10px; }
-  .mobile-mode-actions button {
-    min-height: 82px;
-    padding: 15px;
-    border: 1px solid rgba(210, 180, 119, 0.28);
-    border-radius: 12px;
-    color: var(--text-main);
-    background: rgba(255, 255, 255, 0.035);
-    text-align: left;
-    font: inherit;
-  }
-  .mobile-mode-actions button:first-child { background: rgba(210, 180, 119, 0.15); }
-  .mobile-mode-actions strong, .mobile-mode-actions span { display: block; }
-  .mobile-mode-actions strong { color: #f0d49c; margin-bottom: 5px; }
-  .mobile-mode-actions span { color: var(--text-soft); font-size: 0.82rem; }
-
-  .mobile-flow-steps { display: flex; gap: 10px; margin: 0 3px 13px; color: #9aa0a8; font-size: 0.76rem; }
-  .mobile-flow-steps span.is-current, .mobile-flow-steps span.is-done { color: #ead5a7; }
-
   .mobile-hall-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
   .mobile-hall-tabs button { min-height: 48px; border: 1px solid var(--line-soft); border-radius: 10px; color: var(--text-soft); background: rgba(255,255,255,0.03); font: inherit; }
   .mobile-hall-tabs button.is-active { color: #10100e; border-color: #d2b477; background: #d2b477; }
+
+  .mobile-seat-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: -4px 0 14px; }
+  .mobile-seat-actions button { min-height: 42px; border: 1px solid rgba(210,180,119,0.26); border-radius: 10px; color: #ead5a7; background: rgba(255,255,255,0.035); font: inherit; }
+
+  .mobile-recommend-drawer { position: fixed; z-index: 50; right: 0; bottom: 0; left: 0; max-height: 82vh; padding: 16px 14px calc(16px + env(safe-area-inset-bottom)); overflow: auto; border: 1px solid rgba(210,180,119,0.3); border-radius: 20px 20px 0 0; background: #151412; box-shadow: 0 -20px 54px rgba(0,0,0,0.45); }
+  .mobile-recommend-drawer[hidden] { display: none; }
+  .mobile-recommend-drawer__head { display:flex; align-items:center; justify-content:space-between; margin-bottom: 10px; }
+  .mobile-recommend-drawer__head strong { color:#ead5a7; }
+  .mobile-recommend-drawer__head button { border:0; color:var(--text-soft); background:transparent; font:inherit; }
+  .mobile-recommend-drawer .recommend-panel { margin: 0; padding: 0; border: 0; background: transparent; }
 
   .seat-map-sidebar details { margin-bottom: 9px; border: 1px solid rgba(210,180,119,0.18); border-radius: 11px; background: rgba(255,255,255,0.025); }
   .seat-map-sidebar details summary { padding: 12px 14px; color: #ead5a7; cursor: pointer; font-weight: 700; }
@@ -5362,6 +5336,7 @@ body.mode-large-text #accessibilityMenuBtn {
 
 @media (min-width: 721px) {
   .mobile-flow-ui { display: none !important; }
+  .mobile-recommend-drawer { display: none !important; }
   .seat-map-sidebar details { display: contents; }
   .seat-map-sidebar details summary { display: none; }
 }
@@ -5456,19 +5431,8 @@ body.mode-large-text #accessibilityMenuBtn {
           <strong>SmartCinema</strong>
           <span>
             <button type="button" id="mobileOrdersBtn">订单</button>
-            <button type="button" id="mobileRestartBtn">重新选座</button>
           </span>
         </nav>
-        <section class="mobile-mode-card" id="mobileModeCard">
-          <p class="panel-heading__tag">MOBILE SEAT FLOW</p>
-          <h2>今天，怎么选座？</h2>
-          <p>智能推荐会根据票型和同行信息推荐座位；手动选座可直接进入座位图自由选择。</p>
-          <div class="mobile-mode-actions">
-            <button type="button" id="mobileRecommendBtn"><strong>智能推荐选座</strong><span>填写票型、年龄和成员信息，由系统推荐合适座位。</span></button>
-            <button type="button" id="mobileManualBtn"><strong>手动自由选座</strong><span>不填写观众信息，直接进入座位图选择。</span></button>
-          </div>
-        </section>
-        <div class="mobile-flow-steps" id="mobileFlowSteps" aria-label="选座步骤"><span>1 方式</span><span>2 选座</span><span>3 确认</span></div>
       </div>
       <header class="hero hero--app" id="userAppHeader">
         <div class="hero__copy">
@@ -10011,10 +9975,8 @@ function escapeHtml(value) {
 (() => {
   const app = document.getElementById("appScreen");
   const flowUi = document.getElementById("mobileFlowUi");
-  const modeCard = document.getElementById("mobileModeCard");
-  const stepper = document.getElementById("mobileFlowSteps");
   const mobileQuery = window.matchMedia("(max-width: 720px)");
-  const flow = window.smartCinemaMobileFlow = { step: "mode", mode: null };
+  const flow = window.smartCinemaMobileFlow = { step: "seats", mode: "manual" };
 
   const canvasPanel = document.querySelector(".canvas-panel");
   const panelHeading = canvasPanel?.querySelector(":scope > .panel-heading");
@@ -10022,6 +9984,19 @@ function escapeHtml(value) {
   mobileHallTabs.className = "mobile-hall-tabs mobile-flow-ui";
   mobileHallTabs.setAttribute("aria-label", "移动端影厅切换");
   panelHeading?.after(mobileHallTabs);
+
+  const mobileSeatActions = document.createElement("div");
+  mobileSeatActions.className = "mobile-seat-actions mobile-flow-ui";
+  mobileSeatActions.innerHTML = '<button type="button">✨ 智能推荐</button><button type="button">热度 / 图例</button>';
+  mobileHallTabs.after(mobileSeatActions);
+
+  const recommendationPanel = document.querySelector(".recommend-panel");
+  const recommendationHome = { parent: recommendationPanel?.parentElement, next: recommendationPanel?.nextElementSibling };
+  const recommendationDrawer = document.createElement("section");
+  recommendationDrawer.className = "mobile-recommend-drawer";
+  recommendationDrawer.hidden = true;
+  recommendationDrawer.innerHTML = '<div class="mobile-recommend-drawer__head"><strong>✨ 智能推荐座位</strong><button type="button">关闭</button></div>';
+  app.append(recommendationDrawer);
 
   const seatBar = document.createElement("aside");
   seatBar.className = "mobile-seat-bar mobile-flow-ui";
@@ -10034,7 +10009,7 @@ function escapeHtml(value) {
 
   document.querySelectorAll(".seat-map-sidebar > section").forEach((section, index) => {
     const details = document.createElement("details");
-    details.open = true;
+    details.open = false;
     const summary = document.createElement("summary");
     summary.textContent = index === 0 ? "座位说明" : "热度地图";
     section.before(details);
@@ -10067,6 +10042,29 @@ function escapeHtml(value) {
     });
   }
 
+  function syncRecommendationPanelLocation() {
+    if (!recommendationPanel) return;
+    if (isMobile()) {
+      recommendationDrawer.append(recommendationPanel);
+      return;
+    }
+    if (recommendationHome.parent && recommendationPanel.parentElement !== recommendationHome.parent) {
+      recommendationHome.parent.insertBefore(recommendationPanel, recommendationHome.next);
+    }
+  }
+
+  function openRecommendationDrawer() {
+    flow.mode = "recommend";
+    syncRecommendationPanelLocation();
+    recommendationDrawer.hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeRecommendationDrawer() {
+    recommendationDrawer.hidden = true;
+    document.body.style.overflow = "";
+  }
+
   function render() {
     const seatCount = selectedSeatKeys.length;
     const hall = state.halls[selectedHallId];
@@ -10077,27 +10075,22 @@ function escapeHtml(value) {
 
     app.dataset.mobileFlow = isMobile() ? flow.step : "desktop";
     flowUi.hidden = !isMobile();
-    modeCard.hidden = !isMobile() || flow.step !== "mode";
-    stepper.hidden = !isMobile() || flow.step === "mode";
-    [...stepper.querySelectorAll("span")].forEach((item, index) => {
-      const current = flow.step === "recommend" ? 1 : flow.step === "seats" ? 2 : flow.step === "checkout" ? 3 : 0;
-      item.classList.toggle("is-current", index + 1 === current);
-      item.classList.toggle("is-done", index + 1 < current);
-    });
     seatBar.hidden = !isMobile() || flow.step !== "seats";
     seatBar.querySelector("strong").textContent = seatCount ? `已选 ${seatCount} 座` : "尚未选择座位";
     seatBar.querySelector("span").textContent = seatCount ? `预计 ¥${seatCount * 46}` : "选择座位后继续";
     seatBar.querySelector("button").disabled = seatCount === 0;
     orderSummary.innerHTML = [["影厅", hall?.name || "-"], ["座位", seatText], ["票型", ticketLabel], ["人数", `${seatCount} 人`], ["金额", seatCount ? `¥${seatCount * 46}` : "-"]]
       .map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
+    if (!isMobile()) closeRecommendationDrawer();
+    syncRecommendationPanelLocation();
     renderHallTabs();
   }
 
   const originalShowUserAppView = showUserAppView;
   showUserAppView = function () {
     originalShowUserAppView();
-    flow.step = "mode";
-    flow.mode = null;
+    flow.step = "seats";
+    flow.mode = "manual";
     render();
   };
 
@@ -10107,9 +10100,15 @@ function escapeHtml(value) {
     render();
   };
 
-  document.getElementById("mobileRecommendBtn").addEventListener("click", () => setStep("recommend", "recommend"));
-  document.getElementById("mobileManualBtn").addEventListener("click", () => setStep("seats", "manual"));
-  document.getElementById("mobileRestartBtn").addEventListener("click", () => setStep("mode", null));
+  mobileSeatActions.querySelectorAll("button")[0].addEventListener("click", openRecommendationDrawer);
+  mobileSeatActions.querySelectorAll("button")[1].addEventListener("click", () => {
+    const heatDetails = [...document.querySelectorAll(".seat-map-sidebar details")][1];
+    if (heatDetails) {
+      heatDetails.open = !heatDetails.open;
+      heatDetails.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  });
+  recommendationDrawer.querySelector("button").addEventListener("click", closeRecommendationDrawer);
   document.getElementById("mobileOrdersBtn").addEventListener("click", () => {
     flowUi.hidden = true;
     handleOpenOrderPage();
@@ -10120,7 +10119,11 @@ function escapeHtml(value) {
   });
   document.getElementById("recommendBtn").addEventListener("click", () => {
     window.setTimeout(() => {
-      if (isMobile() && recommendedSeatKeys.length) setStep("seats", "recommend");
+      if (isMobile() && recommendedSeatKeys.length) {
+        flow.mode = "recommend";
+        closeRecommendationDrawer();
+        render();
+      }
     }, 0);
   });
   mobileQuery.addEventListener("change", render);

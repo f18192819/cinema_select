@@ -16,6 +16,24 @@ python -m http.server 8080
 
 默认管理员账号为 `admin`，密码为 `Admin@123`。普通账号只能通过注册页面创建。
 
+### 单文件前端
+
+当前 `index.html` 已内联全部浏览器端 HTML、CSS 和 JavaScript，可单独打开运行本地选座功能；`style.css` 与 `app.js` 保留为便于阅读、维护和后续拆分的源文件，页面运行时不再加载它们。
+
+### WebSocket 实时协作模式
+
+要让不同设备或不同浏览器之间实时同步座位，请使用项目自带的零依赖 WebSocket 服务，而不是直接双击 `index.html`：
+
+```powershell
+node server.js
+```
+
+然后让所有测试设备访问同一个服务地址，例如本机访问 `http://localhost:8080`；局域网设备访问 `http://本机IP:8080`。浏览器会自动连接 `ws://地址/ws`，无需安装 `ws`、ECharts 或任何第三方包。
+
+服务端把已确认的影院状态保存到 `data/smartCinemaState.json`。该文件是演示数据，已加入 `.gitignore`；重置实时演示数据时，可在停止服务后删除该文件。
+
+没有启动 `server.js`，或直接打开 `index.html` 时，项目会自动退回 `BroadcastChannel + storage` 的本地多标签页同步模式，原有功能仍可使用。
+
 ## 项目结构
 
 ```text
@@ -23,6 +41,8 @@ big_homework/
 ├─ index.html          页面结构：登录、用户端、管理员后台
 ├─ style.css           科技感主题、响应式布局、无障碍模式样式
 ├─ app.js              业务状态、Canvas 绘制、交互、LocalStorage 持久化
+├─ server.js            零依赖静态服务器与 WebSocket 实时状态服务
+├─ package.json         `npm start` 启动命令（不含第三方依赖）
 ├─ USER_MANUAL.md      用户使用手册
 ├─ PHASE1_REPORT.md    第一阶段开发记录
 ├─ README.md           项目说明与功能代码对照
@@ -39,9 +59,9 @@ big_homework/
 
 影厅座位、用户与订单集中保存在 `state` 中，任何预订、购票、取消、退票或管理员座位修改都会调用 `saveState()` 保存并重新渲染。这样普通用户端、热度边框和管理员后台读取的是同一份数据。
 
-### 3. 多标签页实时协作采用本地模拟
+### 3. WebSocket 实时协作与本地降级
 
-本项目没有后端，因此不建立真实 WebSocket 服务器；加分项采用 `BroadcastChannel` 主动广播、`storage` 事件兜底接收，实现同一浏览器不同标签页的实时座位同步。登录会话改存入 `sessionStorage`，每个标签页可独立登录管理员或不同普通用户；`runSeatStateTransaction()` 会在提交前重读最新座位数据并加浏览器锁，避免同一座位被重复预订或购票。
+`server.js` 使用 Node 内置 `http`、`crypto` 和 WebSocket 协议实现实时服务，不依赖第三方包。服务端保存权威状态，并为每次提交分配版本号；`runSeatStateTransaction()` 提交预订或购票前会携带当前版本，过期提交会被服务端拒绝并回滚为最新状态，从而避免不同设备抢到同一座位。登录会话保存在 `sessionStorage`，管理员和普通用户可在不同标签页独立在线。服务未启动时，页面自动使用 `BroadcastChannel + storage` 保持本地多标签页同步。
 
 ### 4. 用 Canvas 承担视觉密度高的座位交互
 
@@ -96,7 +116,7 @@ big_homework/
 | 模块 4：观影体验评分 | `updateExperienceScore()`、`calculateSystemExperienceScore()`、`handleUserRating()`、`renderExperienceScoreState()` | 根据距离、居中程度、周边空位和规则匹配给出分数与等级，并显示用户评分后的综合结果。 |
 | 模块 5：无障碍模式 | `handleAccessibilityToggle()`、`applyAccessibilitySettings()`、`renderAccessibilityState()`、`speakMessage()`；`style.css` 的 `mode-large-text`、`mode-high-contrast`、`mode-colorblind` | 支持大字体、高对比度、色盲友好和 SpeechSynthesis 语音提示，配置会保存。 |
 | 模块 6：订单中心 | `handleCreateOrder()`、`validateOrderSelection()`、`handleOrderListAction()`、`updateOrderStatus()`、`renderOrderCenter()` | 支持预订、取消预订、购票和退票；订单状态会同步更新座位。 |
-| 加分项：多人实时座位更新 | `initializeRealtimeSync()`、`BroadcastChannel`、`handleSharedStateStorageEvent()`、`runSeatStateTransaction()`、`sessionStorage` 会话函数 | 不依赖后端，模拟多用户多标签页在线；管理员和用户身份独立，座位变化实时重绘，冲突订单由事务锁和提交前校验拦截。 |
+| 加分项：多人实时座位更新 | `server.js`、`initializeWebSocketSync()`、`submitStateToServer()`、`runSeatStateTransaction()`、`sessionStorage` 会话函数 | WebSocket 服务端保存权威状态并按版本拒绝过期提交，支持不同浏览器或设备的实时同步；服务未启动时自动降级为本地多标签页同步。 |
 | 管理员扩展 | `renderAdminDashboard()`、`renderAdminSeatCanvas()`、`handleAdminSeatCanvasClick()`、`handleAdminOrderAction()`、`handleAdminResetHall()`、`renderAdminUsers()` | 管理员可查看概览、修改座位、重置影厅、管理全部订单和查看普通用户；不展示用户密码。 |
 
 ## 作业要求完成情况
@@ -110,7 +130,7 @@ big_homework/
 | PC、平板、手机响应式布局 | 已完成基础适配 |
 | AI 问答式观影顾问 | 未单独实现；当前为表单式智能推荐 |
 | 一周热度变化播放 | 未实现；当前为订单/座位状态实时热度扩散 |
-| WebSocket 多人实时更新 | 已完成本地多人在线模拟：使用 `BroadcastChannel + storage` 实时同步；真实 WebSocket 服务端不在本项目范围内 |
+| WebSocket 多人实时更新 | 已完成：`server.js` 提供零依赖 WebSocket 服务；跨浏览器/设备访问同一服务地址即可实时同步，未启动服务时保留本地同步降级。 |
 
 ## 验证建议
 
@@ -123,6 +143,6 @@ big_homework/
 
 ## 已知边界
 
-- 项目无后端与真实支付，所有数据仅保存在当前浏览器。
+- WebSocket 实时模式使用本地 Node 服务与 JSON 文件保存演示数据，不含真实支付、鉴权或生产级安全策略。
 - 清除浏览器站点数据会重置本地状态。
 - 管理员用户管理目前提供普通用户信息展示，不提供删除用户功能。

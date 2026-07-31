@@ -1,6 +1,12 @@
 const STORAGE_KEY = "smartCinemaState";
 const USER_STORAGE_KEY = "smartCinemaUsers";
 const CURRENT_USER_STORAGE_KEY = "smartCinemaCurrentUser";
+const TAB_SESSION_STORAGE_KEY = "smartCinemaTabSession";
+const TAB_ID_STORAGE_KEY = "smartCinemaRealtimeTabId";
+const REALTIME_CHANNEL_NAME = "smartCinemaRealtime";
+const REALTIME_LOCK_NAME = "smartCinemaSeatTransaction";
+const WEBSOCKET_PATH = "/ws";
+const WEBSOCKET_RECONNECT_DELAY = 2000;
 const ACCESSIBILITY_STORAGE_KEY = "smartCinemaAccessibility";
 const AUTH_VIEWS = ["login", "register"];
 const ORDER_STATUS = {
@@ -128,12 +134,24 @@ const dom = {
   adminOrderSummary: document.getElementById("adminOrderSummary"),
   adminOrderList: document.getElementById("adminOrderList"),
   adminUserSummary: document.getElementById("adminUserSummary"),
-  adminUserList: document.getElementById("adminUserList")
+  adminUserList: document.getElementById("adminUserList"),
+  realtimeStatuses: [...document.querySelectorAll("[data-realtime-status]")]
 };
 
 const ctx = dom.canvas.getContext("2d");
 const miniMapCtx = dom.seatMiniMap ? dom.seatMiniMap.getContext("2d") : null;
 const adminCtx = dom.adminCanvas ? dom.adminCanvas.getContext("2d") : null;
+const realtimeTabId = getOrCreateRealtimeTabId();
+const realtimeChannel = typeof BroadcastChannel === "function"
+  ? new BroadcastChannel(REALTIME_CHANNEL_NAME)
+  : null;
+let lastRealtimeRevision = "";
+let serverRevision = "";
+let websocket = null;
+let websocketReconnectTimer = null;
+let websocketReconnectAttempts = 0;
+let serverTransactionContext = null;
+const pendingSocketCommits = new Map();
 
 let state = loadState();
 initializeUserData();
@@ -170,6 +188,8 @@ function bootstrap() {
   initializeRecommendationUI();
   initializeAccessibilityUI();
   bindEvents();
+  initializeRealtimeSync();
+  initializeWebSocketSync();
   syncScreenState();
   syncCurrentUserUI();
   renderRecommendationState();
@@ -213,8 +233,8 @@ function bindEvents() {
   document.addEventListener("keydown", handleAccessibilityDocumentKeyDown);
   dom.viewOrdersBtn.addEventListener("click", handleOpenOrderPage);
   dom.backToSeatsBtn.addEventListener("click", handleReturnToMainPage);
-  dom.reserveOrderBtn.addEventListener("click", () => handleCreateOrder(ORDER_STATUS.reserved));
-  dom.purchaseOrderBtn.addEventListener("click", () => handleCreateOrder(ORDER_STATUS.purchased));
+  dom.reserveOrderBtn.addEventListener("click", () => void handleCreateOrder(ORDER_STATUS.reserved));
+  dom.purchaseOrderBtn.addEventListener("click", () => void handleCreateOrder(ORDER_STATUS.purchased));
   dom.orderList.addEventListener("click", handleOrderListAction);
   dom.adminCanvas.addEventListener("click", handleAdminSeatCanvasClick);
   dom.adminOrderList.addEventListener("click", handleAdminOrderAction);
@@ -538,7 +558,7 @@ function setUserSubpage(pageName, shouldFocus = true) {
 }
 
 
-function handleCreateOrder(statusCode) {
+async function handleCreateOrder(statusCode) {
   const currentUser = getCurrentUser();
   if (!currentUser) {
     setOrderStatus("登录后，我们就能为你保留座位并完成购票。", "error");
@@ -562,44 +582,58 @@ function handleCreateOrder(statusCode) {
     return;
   }
 
-  const hall = state.halls[selectedHallId];
-  const selectedSeats = selectedSeatKeys
-    .map((seatKey) => findSeatByKey(hall, seatKey))
-    .filter(Boolean);
+  const result = await runSeatStateTransaction(() => {
+    const freshUser = getCurrentUser();
+    const hall = state.halls[selectedHallId];
+    const selectedSeats = hall
+      ? selectedSeatKeys.map((seatKey) => findSeatByKey(hall, seatKey)).filter(Boolean)
+      : [];
+    const orderCheck = hall
+      ? validateOrderSelection(hall, validation.draft, selectedSeats)
+      : { valid: false, message: "当前影厅状态已更新，请重新选择影厅后再试。" };
 
-  const orderCheck = validateOrderSelection(hall, validation.draft, selectedSeats);
-  if (!orderCheck.valid) {
-    setOrderStatus(orderCheck.message, "error");
+    if (!freshUser || !isNormalUser() || !orderCheck.valid) {
+      return { success: false, message: orderCheck.message || "账号状态已变化，请重新登录后再试。" };
+    }
+
+    const ticketConfig = TICKET_TYPE_CONFIG[validation.draft.ticketType];
+    const seatKeys = selectedSeats.map((seat) => `${seat.row}-${seat.number}`);
+    const seatStatus = statusCode === ORDER_STATUS.reserved ? "reserved" : "sold";
+    selectedSeats.forEach((seat) => {
+      seat.status = seatStatus;
+    });
+
+    const order = {
+      orderNo: createOrderNumber(),
+      userId: freshUser.id,
+      username: freshUser.username,
+      displayName: freshUser.displayName,
+      hallId: hall.id,
+      hallName: hall.name,
+      ticketType: validation.draft.ticketType,
+      ticketTypeLabel: ticketConfig.label,
+      seatKeys,
+      seats: seatKeys.map(formatSeatLabel),
+      totalPeople: validation.draft.members.length,
+      members: validation.draft.members.map((member) => ({ ...member })),
+      statusCode,
+      status: getOrderStatusLabel(statusCode),
+      createdAt: new Date().toISOString()
+    };
+
+    state.orders.unshift(order);
+    saveState("座位已被预订或购票");
+    return { success: true, order };
+  });
+
+  if (!result.success) {
+    clearInvalidSelectedSeats();
+    renderCurrentHall();
+    setOrderStatus(result.message || "抱歉，有座位刚刚被其他用户锁定，请重新选择。", "error");
     return;
   }
 
-  const ticketConfig = TICKET_TYPE_CONFIG[validation.draft.ticketType];
-  const seatKeys = selectedSeats.map((seat) => `${seat.row}-${seat.number}`);
-  const seatStatus = statusCode === ORDER_STATUS.reserved ? "reserved" : "sold";
-  selectedSeats.forEach((seat) => {
-    seat.status = seatStatus;
-  });
-
-  const order = {
-    orderNo: createOrderNumber(),
-    userId: currentUser.id,
-    username: currentUser.username,
-    displayName: currentUser.displayName,
-    hallId: hall.id,
-    hallName: hall.name,
-    ticketType: validation.draft.ticketType,
-    ticketTypeLabel: ticketConfig.label,
-    seatKeys,
-    seats: seatKeys.map(formatSeatLabel),
-    totalPeople: validation.draft.members.length,
-    members: validation.draft.members.map((member) => ({ ...member })),
-    statusCode,
-    status: getOrderStatusLabel(statusCode),
-    createdAt: new Date().toISOString()
-  };
-
-  state.orders.unshift(order);
-  saveState();
+  const order = result.order;
   selectedSeatKeys = [];
   clearRecommendation({
     keepSelection: false,
@@ -904,6 +938,11 @@ function handleLogin(event) {
   const username = String(formData.get("username") || "").trim();
   const password = String(formData.get("password") || "").trim();
 
+  const storedState = readStoredState();
+  if (storedState) {
+    state = storedState;
+  }
+
   const user = state.users.find(
     (entry) => entry.username === username && entry.password === password && !entry.disabled
   );
@@ -969,6 +1008,7 @@ function handleRegister(event) {
 
   state.users.push(user);
   setCurrentUser(user);
+  saveState("新用户已注册");
   selectedSeatKeys = [];
   syncScreenState();
   syncCurrentUserUI();
@@ -982,7 +1022,6 @@ function handleRegister(event) {
 
 function handleLogout() {
   clearCurrentUser();
-  saveState();
   selectedSeatKeys = [];
   renderAuthSwitch("login");
   recommendationDraft = createDefaultRecommendationDraft("individual");
@@ -3367,16 +3406,7 @@ function getCurrentUser() {
     ? state.users.find((user) => user.id === session.id && user.role === session.role)
     : null;
 
-  if (sessionUser && !sessionUser.disabled) {
-    return sessionUser;
-  }
-
-  const legacyUser = state.users.find((user) => user.id === state.currentUserId && !user.disabled) || null;
-  if (legacyUser) {
-    persistCurrentUserSession(legacyUser);
-  }
-
-  return legacyUser;
+  return sessionUser && !sessionUser.disabled ? sessionUser : null;
 }
 
 function isAdmin() {
@@ -3390,32 +3420,40 @@ function isNormalUser() {
 }
 
 function setCurrentUser(user) {
-  state.currentUserId = user.id;
   persistCurrentUserSession(user);
-  saveState();
 }
 
 function clearCurrentUser() {
-  state.currentUserId = null;
-  localStorage.removeItem(CURRENT_USER_STORAGE_KEY);
+  try {
+    sessionStorage.removeItem(TAB_SESSION_STORAGE_KEY);
+  } catch (error) {
+    // 无法使用 sessionStorage 时仅清理当前页面的内存会话。
+  }
+  delete window.__smartCinemaTabSession;
 }
 
 function persistCurrentUserSession(user) {
-  localStorage.setItem(CURRENT_USER_STORAGE_KEY, JSON.stringify({
+  const session = {
     id: user.id,
     username: user.username,
     role: user.role,
     memberLevel: user.memberLevel,
     loginAt: new Date().toISOString()
-  }));
+  };
+
+  try {
+    sessionStorage.setItem(TAB_SESSION_STORAGE_KEY, JSON.stringify(session));
+  } catch (error) {
+    window.__smartCinemaTabSession = session;
+  }
 }
 
 function readCurrentUserSession() {
   try {
-    const saved = localStorage.getItem(CURRENT_USER_STORAGE_KEY);
-    return saved ? JSON.parse(saved) : null;
+    const saved = sessionStorage.getItem(TAB_SESSION_STORAGE_KEY);
+    return saved ? JSON.parse(saved) : (window.__smartCinemaTabSession || null);
   } catch (error) {
-    return null;
+    return window.__smartCinemaTabSession || null;
   }
 }
 
@@ -3424,22 +3462,26 @@ function roleLabel(role) {
 }
 
 function loadState() {
-  const saved = localStorage.getItem(STORAGE_KEY);
-
-  if (!saved) {
+  const storedState = readStoredState();
+  if (!storedState) {
     const initialState = createInitialState();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(initialState));
     return initialState;
   }
 
+  return storedState;
+}
+
+function readStoredState() {
   try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) {
+      return null;
+    }
     const normalizedState = normalizeState(JSON.parse(saved));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedState));
     return normalizedState;
   } catch (error) {
-    const fallbackState = createInitialState();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(fallbackState));
-    return fallbackState;
+    return null;
   }
 }
 
@@ -3464,8 +3506,32 @@ function normalizeState(savedState) {
   };
 }
 
-function saveState() {
+function saveState(reason = "影院数据已更新") {
   state.users = state.users.map(normalizeUser);
+  state.currentUserId = null;
+  state.realtimeRevision = `${Date.now()}-${realtimeTabId}-${Math.random().toString(36).slice(2, 8)}`;
+  state.updatedAt = new Date().toISOString();
+  lastRealtimeRevision = state.realtimeRevision;
+
+  if (serverTransactionContext) {
+    serverTransactionContext.reason = reason;
+    return;
+  }
+
+  if (hasWebSocketConnection()) {
+    submitStateToServer(reason).then((result) => {
+      if (!result.accepted) {
+        renderRealtimeStatus("服务端拒绝了过期数据，已恢复最新座位状态。");
+      }
+    });
+    return;
+  }
+
+  persistStateLocally();
+  publishRealtimeUpdate(reason);
+}
+
+function persistStateLocally() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(state.users));
 }
@@ -3474,13 +3540,330 @@ function initializeUserData() {
   const storedUsers = readStoredUsers();
   state.users = mergeUsers(state.users, storedUsers);
   initDefaultAdmin();
+  migrateLegacyCurrentUserSession();
+  saveState("用户数据已初始化");
+}
 
-  const legacyCurrentUser = state.users.find((user) => user.id === state.currentUserId);
-  if (!readCurrentUserSession() && legacyCurrentUser) {
-    persistCurrentUserSession(legacyCurrentUser);
+function migrateLegacyCurrentUserSession() {
+  if (readCurrentUserSession()) {
+    state.currentUserId = null;
+    return;
   }
 
-  saveState();
+  let legacySession = null;
+  try {
+    const saved = localStorage.getItem(CURRENT_USER_STORAGE_KEY);
+    legacySession = saved ? JSON.parse(saved) : null;
+  } catch (error) {
+    legacySession = null;
+  }
+
+  const legacyUserId = legacySession?.id || state.currentUserId;
+  const legacyUser = state.users.find((user) => user.id === legacyUserId && !user.disabled);
+  if (legacyUser) {
+    persistCurrentUserSession(legacyUser);
+  }
+
+  state.currentUserId = null;
+  localStorage.removeItem(CURRENT_USER_STORAGE_KEY);
+}
+
+function getOrCreateRealtimeTabId() {
+  try {
+    const existingId = sessionStorage.getItem(TAB_ID_STORAGE_KEY);
+    if (existingId) {
+      return existingId;
+    }
+
+    const tabId = `tab-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    sessionStorage.setItem(TAB_ID_STORAGE_KEY, tabId);
+    return tabId;
+  } catch (error) {
+    return `tab-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+}
+
+function initializeRealtimeSync() {
+  window.addEventListener("storage", (event) => {
+    if (event.key === STORAGE_KEY && event.newValue) {
+      syncStateFromSharedStorage("已收到其他在线用户的座位更新。");
+    }
+  });
+
+  if (realtimeChannel) {
+    realtimeChannel.addEventListener("message", (event) => {
+      const message = event.data;
+      if (message?.type === "state-updated" && message.sourceTabId !== realtimeTabId) {
+        syncStateFromSharedStorage(message.reason || "已收到其他在线用户的座位更新。");
+      }
+    });
+  }
+
+  renderRealtimeStatus();
+}
+
+function publishRealtimeUpdate(reason) {
+  if (!realtimeChannel || hasWebSocketConnection()) {
+    return;
+  }
+
+  realtimeChannel.postMessage({
+    type: "state-updated",
+    sourceTabId: realtimeTabId,
+    revision: state.realtimeRevision,
+    reason
+  });
+}
+
+function syncStateFromSharedStorage(message) {
+  const storedState = readStoredState();
+  applySynchronizedState(storedState, message, false);
+}
+
+function clearInvalidSelectedSeats() {
+  const hall = state.halls[selectedHallId];
+  if (!hall) {
+    selectedSeatKeys = [];
+    recommendedSeatKeys = [];
+    return [];
+  }
+
+  const unavailableSelectedSeats = selectedSeatKeys.filter((seatKey) => {
+    return findSeatByKey(hall, seatKey)?.status !== "available";
+  });
+  selectedSeatKeys = selectedSeatKeys.filter((seatKey) => !unavailableSelectedSeats.includes(seatKey));
+  recommendedSeatKeys = recommendedSeatKeys.filter((seatKey) => findSeatByKey(hall, seatKey)?.status === "available");
+  return unavailableSelectedSeats;
+}
+
+function renderRealtimeStatus(message = getDefaultRealtimeStatus()) {
+  dom.realtimeStatuses.forEach((element) => {
+    element.textContent = message;
+    element.classList.toggle("is-updated", message !== getDefaultRealtimeStatus());
+  });
+}
+
+async function runSeatStateTransaction(mutate) {
+  const performTransaction = async () => {
+    const storedState = readStoredState();
+    if (!storedState) {
+      return { success: false, message: "无法读取最新座位数据，请刷新页面后再试。" };
+    }
+
+    state = storedState;
+    const useWebSocket = hasWebSocketConnection();
+    serverTransactionContext = useWebSocket ? { reason: "座位状态已更新" } : null;
+    const result = mutate();
+    const transaction = serverTransactionContext;
+    serverTransactionContext = null;
+
+    if (!result?.success || !useWebSocket) {
+      return result;
+    }
+
+    const commitResult = await submitStateToServer(transaction.reason);
+    if (!commitResult.accepted) {
+      return {
+        success: false,
+        message: "该座位刚刚被其他用户预订或购票，请重新选择。"
+      };
+    }
+
+    return result;
+  };
+
+  if (navigator.locks?.request) {
+    return navigator.locks.request(REALTIME_LOCK_NAME, { mode: "exclusive" }, performTransaction);
+  }
+
+  return performTransaction();
+}
+
+function initializeWebSocketSync() {
+  const websocketUrl = getWebSocketUrl();
+  if (!websocketUrl) {
+    renderRealtimeStatus("本地多标签页同步已连接（WebSocket 未启动）");
+    return;
+  }
+
+  connectWebSocket(websocketUrl);
+}
+
+function getWebSocketUrl() {
+  if (typeof WebSocket !== "function" || window.location.protocol === "file:") {
+    return null;
+  }
+
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocol}//${window.location.host}${WEBSOCKET_PATH}`;
+}
+
+function connectWebSocket(websocketUrl) {
+  try {
+    websocket = new WebSocket(websocketUrl);
+  } catch (error) {
+    scheduleWebSocketReconnect(websocketUrl);
+    return;
+  }
+
+  websocket.addEventListener("open", () => {
+    websocketReconnectAttempts = 0;
+    sendWebSocketMessage({
+      type: "state-sync-request",
+      sourceId: realtimeTabId,
+      revision: serverRevision || state.realtimeRevision || "",
+      state: createStateSnapshot()
+    });
+    renderRealtimeStatus("WebSocket 实时同步已连接");
+  });
+
+  websocket.addEventListener("message", (event) => {
+    try {
+      handleWebSocketMessage(JSON.parse(event.data));
+    } catch (error) {
+      renderRealtimeStatus("收到无法识别的实时同步数据。");
+    }
+  });
+
+  websocket.addEventListener("close", () => {
+    websocket = null;
+    renderRealtimeStatus("WebSocket 已断开，已切换为本地同步。");
+    scheduleWebSocketReconnect(websocketUrl);
+  });
+
+  websocket.addEventListener("error", () => {
+    websocket?.close();
+  });
+}
+
+function scheduleWebSocketReconnect(websocketUrl) {
+  if (websocketReconnectTimer || window.location.protocol === "file:") {
+    return;
+  }
+
+  websocketReconnectAttempts += 1;
+  const delay = Math.min(WEBSOCKET_RECONNECT_DELAY * websocketReconnectAttempts, 10000);
+  websocketReconnectTimer = window.setTimeout(() => {
+    websocketReconnectTimer = null;
+    connectWebSocket(websocketUrl);
+  }, delay);
+}
+
+function hasWebSocketConnection() {
+  return Boolean(websocket && websocket.readyState === WebSocket.OPEN);
+}
+
+function sendWebSocketMessage(message) {
+  if (!hasWebSocketConnection()) {
+    return false;
+  }
+
+  websocket.send(JSON.stringify(message));
+  return true;
+}
+
+function createStateSnapshot() {
+  return JSON.parse(JSON.stringify(state));
+}
+
+function submitStateToServer(reason) {
+  if (!hasWebSocketConnection()) {
+    persistStateLocally();
+    publishRealtimeUpdate(reason);
+    return Promise.resolve({ accepted: true, fallback: true });
+  }
+
+  const requestId = `commit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return new Promise((resolve) => {
+    const timeoutId = window.setTimeout(() => {
+      pendingSocketCommits.delete(requestId);
+      resolve({ accepted: false, message: "实时服务响应超时，请重试。" });
+    }, 5000);
+
+    pendingSocketCommits.set(requestId, { resolve, timeoutId });
+    const sent = sendWebSocketMessage({
+      type: "state-commit",
+      requestId,
+      sourceId: realtimeTabId,
+      baseRevision: serverRevision || "",
+      reason,
+      state: createStateSnapshot()
+    });
+
+    if (!sent) {
+      window.clearTimeout(timeoutId);
+      pendingSocketCommits.delete(requestId);
+      persistStateLocally();
+      publishRealtimeUpdate(reason);
+      resolve({ accepted: true, fallback: true });
+    }
+  });
+}
+
+function handleWebSocketMessage(message) {
+  if (!message || typeof message !== "object") {
+    return;
+  }
+
+  if (message.type === "state-sync" || message.type === "state-update") {
+    applySynchronizedState(message.state, message.reason || "已收到其他设备的座位更新。", true);
+    return;
+  }
+
+  if (message.type === "state-commit-result") {
+    const pendingCommit = pendingSocketCommits.get(message.requestId);
+    if (pendingCommit) {
+      window.clearTimeout(pendingCommit.timeoutId);
+      pendingSocketCommits.delete(message.requestId);
+    }
+
+    applySynchronizedState(
+      message.state,
+      message.accepted ? (message.reason || "座位状态已同步到实时服务。") : "座位状态已被其他用户更新。",
+      true,
+      !message.accepted
+    );
+    pendingCommit?.resolve({ accepted: Boolean(message.accepted), message: message.message || "" });
+  }
+}
+
+function applySynchronizedState(nextState, message, shouldPersist, force = false) {
+  if (!nextState) {
+    return false;
+  }
+
+  const normalizedState = normalizeState(nextState);
+  const revision = normalizedState.realtimeRevision || "";
+  if (!force && revision && revision === lastRealtimeRevision) {
+    return false;
+  }
+
+  state = normalizedState;
+  lastRealtimeRevision = revision;
+  serverRevision = revision || serverRevision;
+  if (shouldPersist) {
+    persistStateLocally();
+  }
+
+  const unavailableSelectedSeats = clearInvalidSelectedSeats();
+  syncScreenState();
+  syncCurrentUserUI();
+  renderOrderCenter();
+  renderCurrentHall();
+  renderAdminDashboard();
+  renderRealtimeStatus(message);
+
+  if (unavailableSelectedSeats.length && isNormalUser()) {
+    setOrderStatus(`座位 ${unavailableSelectedSeats.map(formatSeatLabel).join("、")} 已被其他用户锁定，请重新选择。`, "error");
+  }
+
+  return true;
+}
+
+function getDefaultRealtimeStatus() {
+  return hasWebSocketConnection()
+    ? "WebSocket 实时同步已连接"
+    : "本地多标签页同步已连接（WebSocket 未启动）";
 }
 
 function readStoredUsers() {

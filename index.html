@@ -1677,9 +1677,14 @@ button:disabled {
 .auth-panel {
   width: 100%;
   max-width: 500px;
-  justify-self: end;
+  order: -1;
+  justify-self: start;
   padding: clamp(24px, 3vw, 36px);
   border-color: rgba(111, 231, 255, 0.17);
+}
+
+.hero--auth {
+  order: 1;
 }
 
 .auth-switch {
@@ -2385,6 +2390,55 @@ body.mode-high-contrast .order-card {
 }
 
 @media (max-width: 720px) {
+  .auth-screen {
+    gap: 18px;
+  }
+
+  .auth-panel {
+    order: -1;
+    max-width: none;
+    justify-self: stretch;
+  }
+
+  .hero--auth {
+    order: 1;
+  }
+
+  .hero--auth .hero__copy {
+    padding: 20px 8px 8px;
+  }
+
+  .hero--auth .hero__copy h1 {
+    font-size: clamp(2rem, 11vw, 3rem);
+  }
+
+  .hero--auth .hero__metrics {
+    display: none;
+  }
+
+  #userAppHeader .hero__metrics--app {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #userAppHeader .account-summary-card {
+    grid-column: 1 / -1;
+    min-height: 108px;
+  }
+
+  .hall-tabs {
+    grid-auto-columns: minmax(112px, 1fr);
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: inline proximity;
+  }
+
+  .hall-tab {
+    min-width: 112px;
+    scroll-snap-align: start;
+  }
+
   .page-shell {
     width: min(calc(100% - 20px), var(--container));
     padding: 10px 0 28px;
@@ -4404,8 +4458,18 @@ body.mode-large-text .seat-map-sidebar .legend__title--ring {
   min-width: 0;
 }
 
-.account-summary-card {
-  align-items: flex-start;
+#userAppHeader .account-summary-card {
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 10px;
+}
+
+.account-summary-card__identity {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
 }
 
 .account-summary-card__name {
@@ -4431,6 +4495,14 @@ body.mode-large-text .seat-map-sidebar .legend__title--ring {
   line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+#userAppHeader .account-summary-card #viewOrdersBtn {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  font-size: 0.78rem;
 }
 
 #userAppHeader .header-control-card {
@@ -5074,7 +5146,7 @@ body.mode-large-text #accessibilityMenuBtn {
 }
 
 .checkout-panel--inline .order-actions {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -5142,6 +5214,44 @@ body.mode-large-text #accessibilityMenuBtn {
   .seat-view-tools,
   .panel-heading__meta {
     align-items: flex-start;
+  }
+}
+
+/* Final mobile overrides: keep authentication first and user controls compact. */
+@media (max-width: 720px) {
+  .hero--auth .hero__copy {
+    padding: 20px 8px 8px;
+  }
+
+  .hero--auth .hero__metrics {
+    display: none;
+  }
+
+  #userAppHeader .hero__metrics--app {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #userAppHeader .account-summary-card {
+    grid-column: 1 / -1;
+    min-height: 108px;
+  }
+
+  #userAppHeader .hero__metrics--app .metric-card:last-child {
+    grid-column: auto;
+  }
+
+  .hall-tabs {
+    grid-auto-columns: minmax(112px, 1fr);
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: inline proximity;
+  }
+
+  .hall-tab {
+    min-width: 112px;
+    scroll-snap-align: start;
   }
 }
 
@@ -5234,15 +5344,18 @@ body.mode-large-text #accessibilityMenuBtn {
       <header class="hero hero--app" id="userAppHeader">
         <div class="hero__copy">
           <p class="eyebrow">SMARTCINEMA · SEAT CONSOLE</p>
-          <h1>今晚，坐个好位置。</h1>
+          <h1>银幕之间，一席光影</h1>
           <p class="hero__lead">
             先看看为你挑选的座位，不满意可以随时调整；确认后，即可预订并完成购票。
           </p>
         </div>
         <div class="hero__metrics hero__metrics--app">
           <article class="metric-card account-summary-card" aria-label="当前账户">
-            <strong class="account-summary-card__name" id="heroUserName" title="">未登录</strong>
-            <span class="account-summary-card__role" id="heroUserRole">访客</span>
+            <div class="account-summary-card__identity">
+              <strong class="account-summary-card__name" id="heroUserName" title="">未登录</strong>
+              <span class="account-summary-card__role" id="heroUserRole">访客</span>
+            </div>
+            <button class="ghost-btn ghost-btn--compact" id="viewOrdersBtn" type="button">查看我的订单</button>
           </article>
           <article class="metric-card header-control-card">
             <button
@@ -5366,7 +5479,7 @@ body.mode-large-text #accessibilityMenuBtn {
             <div class="recommend-panel__head">
               <div>
                 <p class="panel-heading__tag">SMART RECOMMENDATION</p>
-                <h3>智能推荐选座</h3>
+                <h3>选座信息</h3>
               </div>
             </div>
 
@@ -5523,7 +5636,6 @@ body.mode-large-text #accessibilityMenuBtn {
               </div>
 
               <div class="order-actions">
-                <button class="ghost-btn ghost-btn--compact" id="viewOrdersBtn" type="button">查看我的订单</button>
                 <button class="ghost-btn ghost-btn--compact" id="reserveOrderBtn" type="button">预订当前座位</button>
                 <button class="primary-btn primary-btn--compact" id="purchaseOrderBtn" type="button">购买当前座位</button>
               </div>
@@ -6235,6 +6347,15 @@ function handleAccessibilityToggle(settingKey) {
   renderAccessibilityState();
 }
 
+function resetAccessibilitySettings() {
+  accessibilityState = createDefaultAccessibilityState();
+  localStorage.removeItem(ACCESSIBILITY_STORAGE_KEY);
+  window.speechSynthesis?.cancel();
+  setAccessibilityMenuOpen(false);
+  applyAccessibilitySettings();
+  renderAccessibilityState();
+}
+
 function handleVoicePurchaseDemo() {
   if (!accessibilityState.voicePrompt) {
     dom.accessibilityStatus.textContent = "语音提示还未开启。开启后，就可以试听购票完成播报。";
@@ -6390,21 +6511,7 @@ function validateOrderSelection(hall, draft, selectedSeats) {
     };
   }
 
-  const restriction = calculateAudienceRestriction(draft.members, hall.rows);
-  if (restriction.hasMinor && selectedSeats.some((seat) => seat.row <= 3)) {
-    return {
-      valid: false,
-      message: "同行人中有未满 15 岁的观众，为了更舒适地观影，请避开前 3 排。"
-    };
-  }
-
-  if (restriction.hasSenior && selectedSeats.some((seat) => seat.row > hall.rows - 3)) {
-    return {
-      valid: false,
-      message: "同行人中有 60 岁以上的观众，为了更舒适地观影，请避开最后 3 排。"
-    };
-  }
-
+  // 年龄规则仅用于智能推荐，手动选座后的订单不限制排数。
   if (draft.ticketType === "group" && !isSameRowConsecutive(selectedSeats)) {
     return {
       valid: false,
@@ -6739,6 +6846,7 @@ function handleRegister(event) {
 
 function handleLogout() {
   clearCurrentUser();
+  resetAccessibilitySettings();
   selectedSeatKeys = [];
   renderAuthSwitch("login");
   recommendationDraft = createDefaultRecommendationDraft("individual");
@@ -6872,7 +6980,10 @@ function renderAdminSeatCanvas() {
   const maxSeatWidth = logicalWidth - marginX * 2;
   const seatGap = maxSeatWidth / Math.max(hall.seatsPerRow - 1, 1);
   const seatRadius = Math.max(4, Math.min(11, seatGap * 0.3));
-  const labelEnabled = hall.seatsPerRow <= 20 && seatRadius >= 7;
+  const labelEnabled = hall.id === "large" || (hall.seatsPerRow <= 20 && seatRadius >= 7);
+  const labelFontSize = hall.id === "large"
+    ? Math.max(4.5, Math.min(7.5, seatGap * 0.28))
+    : 9;
 
   dom.adminCanvas.width = logicalWidth * pixelRatio;
   dom.adminCanvas.height = logicalHeight * pixelRatio;
@@ -6926,9 +7037,9 @@ function renderAdminSeatCanvas() {
 
       if (labelEnabled) {
         adminCtx.fillStyle = "#03111f";
-        adminCtx.font = "9px 'Noto Sans SC', sans-serif";
+        adminCtx.font = `${labelFontSize}px 'Noto Sans SC', sans-serif`;
         adminCtx.textAlign = "center";
-        adminCtx.fillText(String(seatNumber), x, y + 3);
+        adminCtx.fillText(String(seatNumber), x, y + labelFontSize * 0.35);
       }
 
       adminRenderedSeats.push({
@@ -7697,7 +7808,7 @@ function drawCanvasChrome(width, height, hall, isLoggedIn, palette) {
  *  1) 填充色：按状态(空座/选中/已售/已预订/禁用)取色，带发光
  *  2) 外圈：开热度时画热度色(红/黄/绿)；关热度时画白色细圈
  *  3) 推荐外圈(青)/手动外圈(白)：比座位大一圈，标识推荐或手动选择
- *  小座位(≤20座且半径够大)才画座号文字，避免拥挤。
+ *  大厅也始终绘制座号；字体会随座位间距缩小，保证 1-30 座都有标记。
  */
 function drawSeats(hall, width, isLoggedIn, palette) {
   const fontScale = accessibilityState.largeText ? 1.4 : 1;
@@ -7710,7 +7821,10 @@ function drawSeats(hall, width, isLoggedIn, palette) {
   const maxSeatWidth = width - marginX * 2;
   const seatGap = maxSeatWidth / Math.max(seatsPerRow - 1, 1); // 同排相邻座位 x 间距
   const seatRadius = Math.max(4, Math.min(12, seatGap * 0.3)); // 座位半边长，随密度自适应
-  const labelEnabled = seatsPerRow <= 20 && seatRadius >= 7;   // 只在座位够大时画座号
+  const labelEnabled = hall.id === "large" || (seatsPerRow <= 20 && seatRadius >= 7);
+  const labelFontSize = hall.id === "large"
+    ? Math.max(4.5, Math.min(7.5, seatGap * 0.28))
+    : 10 * fontScale;
   const seats = [];
   const heatSources = getHeatSourceSeats(hall); // 本厅热源，复用给所有座位避免重复算
 
@@ -7796,12 +7910,12 @@ function drawSeats(hall, width, isLoggedIn, palette) {
         ctx.restore();
       }
 
-      // 座号文字（仅座位够大时）
+      // 大厅每个座位都标注座号，窄屏时自动使用更小字号。
       if (labelEnabled) {
-        ctx.font = `${10 * fontScale}px 'Noto Sans SC', sans-serif`;
+        ctx.font = `${labelFontSize}px 'Noto Sans SC', sans-serif`;
         ctx.fillStyle = "#03111f";
         ctx.textAlign = "center";
-        ctx.fillText(String(seatNumber), x, y + 3.5);
+        ctx.fillText(String(seatNumber), x, y + labelFontSize * 0.35);
       }
 
       // 记录坐标和半径，handleCanvasClick 用它做命中检测
@@ -8584,22 +8698,11 @@ function calculateRuleMatchMetric(hall, selectedSeats, audienceContext) {
   }
 
   const draft = audienceContext.draft;
-  const restriction = calculateAudienceRestriction(draft.members, hall.rows);
   const issues = [];
   let score = 20;
 
   if (selectedSeats.length !== draft.members.length) {
     issues.push("座位数量和同行人数还没有对应。");
-    score -= 8;
-  }
-
-  if (restriction.hasMinor && selectedSeats.some((seat) => seat.row <= 3)) {
-    issues.push("同行人中有未满 15 岁的观众，请避开前 3 排。");
-    score -= 8;
-  }
-
-  if (restriction.hasSenior && selectedSeats.some((seat) => seat.row > hall.rows - 3)) {
-    issues.push("同行人中有 60 岁以上的观众，请避开最后 3 排。");
     score -= 8;
   }
 
@@ -8611,7 +8714,7 @@ function calculateRuleMatchMetric(hall, selectedSeats, audienceContext) {
     return {
       score,
       status: "success",
-      reason: "这组座位符合同行人的年龄安排和票型要求。"
+      reason: "这组座位符合当前票型与同行人数的安排要求。"
     };
   }
 
@@ -8873,7 +8976,7 @@ function recommendSeatsForHall(hall, draft) {
 
 function calculateAudienceRestriction(audience, totalRows) {
   const hasMinor = audience.some((member) => member.age < 15);
-  const hasSenior = audience.some((member) => member.age > 60);
+  const hasSenior = audience.some((member) => member.age >= 60);
 
   return {
     hasMinor,
@@ -9006,7 +9109,7 @@ function buildRecommendationReasons(hall, ticketType, candidate, restriction) {
   }
 
   if (restriction.hasSenior) {
-    reasons.push("同行人中有 60 岁以上的观众，已为你避开最后 3 排。");
+    reasons.push("同行人中有 60 岁及以上的观众，已为你避开最后 3 排。");
   }
 
   reasons.push(`推荐位于第 ${candidate.row} 排，${rowTone}。`);
@@ -9036,7 +9139,7 @@ function buildRestrictionReasons(ticketType, restriction) {
   }
 
   if (restriction.hasSenior) {
-    reasons.push("同行人中有 60 岁以上的观众，请避开最后 3 排。");
+    reasons.push("同行人中有 60 岁及以上的观众，请避开最后 3 排。");
   }
 
   return reasons;

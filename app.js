@@ -518,6 +518,15 @@ function handleAccessibilityToggle(settingKey) {
   renderAccessibilityState();
 }
 
+function resetAccessibilitySettings() {
+  accessibilityState = createDefaultAccessibilityState();
+  localStorage.removeItem(ACCESSIBILITY_STORAGE_KEY);
+  window.speechSynthesis?.cancel();
+  setAccessibilityMenuOpen(false);
+  applyAccessibilitySettings();
+  renderAccessibilityState();
+}
+
 function handleVoicePurchaseDemo() {
   if (!accessibilityState.voicePrompt) {
     dom.accessibilityStatus.textContent = "语音提示还未开启。开启后，就可以试听购票完成播报。";
@@ -673,21 +682,7 @@ function validateOrderSelection(hall, draft, selectedSeats) {
     };
   }
 
-  const restriction = calculateAudienceRestriction(draft.members, hall.rows);
-  if (restriction.hasMinor && selectedSeats.some((seat) => seat.row <= 3)) {
-    return {
-      valid: false,
-      message: "同行人中有未满 15 岁的观众，为了更舒适地观影，请避开前 3 排。"
-    };
-  }
-
-  if (restriction.hasSenior && selectedSeats.some((seat) => seat.row > hall.rows - 3)) {
-    return {
-      valid: false,
-      message: "同行人中有 60 岁以上的观众，为了更舒适地观影，请避开最后 3 排。"
-    };
-  }
-
+  // 年龄规则仅用于智能推荐，手动选座后的订单不限制排数。
   if (draft.ticketType === "group" && !isSameRowConsecutive(selectedSeats)) {
     return {
       valid: false,
@@ -1022,6 +1017,7 @@ function handleRegister(event) {
 
 function handleLogout() {
   clearCurrentUser();
+  resetAccessibilitySettings();
   selectedSeatKeys = [];
   renderAuthSwitch("login");
   recommendationDraft = createDefaultRecommendationDraft("individual");
@@ -1155,7 +1151,10 @@ function renderAdminSeatCanvas() {
   const maxSeatWidth = logicalWidth - marginX * 2;
   const seatGap = maxSeatWidth / Math.max(hall.seatsPerRow - 1, 1);
   const seatRadius = Math.max(4, Math.min(11, seatGap * 0.3));
-  const labelEnabled = hall.seatsPerRow <= 20 && seatRadius >= 7;
+  const labelEnabled = hall.id === "large" || (hall.seatsPerRow <= 20 && seatRadius >= 7);
+  const labelFontSize = hall.id === "large"
+    ? Math.max(4.5, Math.min(7.5, seatGap * 0.28))
+    : 9;
 
   dom.adminCanvas.width = logicalWidth * pixelRatio;
   dom.adminCanvas.height = logicalHeight * pixelRatio;
@@ -1209,9 +1208,9 @@ function renderAdminSeatCanvas() {
 
       if (labelEnabled) {
         adminCtx.fillStyle = "#03111f";
-        adminCtx.font = "9px 'Noto Sans SC', sans-serif";
+        adminCtx.font = `${labelFontSize}px 'Noto Sans SC', sans-serif`;
         adminCtx.textAlign = "center";
-        adminCtx.fillText(String(seatNumber), x, y + 3);
+        adminCtx.fillText(String(seatNumber), x, y + labelFontSize * 0.35);
       }
 
       adminRenderedSeats.push({
@@ -1980,7 +1979,7 @@ function drawCanvasChrome(width, height, hall, isLoggedIn, palette) {
  *  1) 填充色：按状态(空座/选中/已售/已预订/禁用)取色，带发光
  *  2) 外圈：开热度时画热度色(红/黄/绿)；关热度时画白色细圈
  *  3) 推荐外圈(青)/手动外圈(白)：比座位大一圈，标识推荐或手动选择
- *  小座位(≤20座且半径够大)才画座号文字，避免拥挤。
+ *  大厅也始终绘制座号；字体会随座位间距缩小，保证 1-30 座都有标记。
  */
 function drawSeats(hall, width, isLoggedIn, palette) {
   const fontScale = accessibilityState.largeText ? 1.4 : 1;
@@ -1993,7 +1992,10 @@ function drawSeats(hall, width, isLoggedIn, palette) {
   const maxSeatWidth = width - marginX * 2;
   const seatGap = maxSeatWidth / Math.max(seatsPerRow - 1, 1); // 同排相邻座位 x 间距
   const seatRadius = Math.max(4, Math.min(12, seatGap * 0.3)); // 座位半边长，随密度自适应
-  const labelEnabled = seatsPerRow <= 20 && seatRadius >= 7;   // 只在座位够大时画座号
+  const labelEnabled = hall.id === "large" || (seatsPerRow <= 20 && seatRadius >= 7);
+  const labelFontSize = hall.id === "large"
+    ? Math.max(4.5, Math.min(7.5, seatGap * 0.28))
+    : 10 * fontScale;
   const seats = [];
   const heatSources = getHeatSourceSeats(hall); // 本厅热源，复用给所有座位避免重复算
 
@@ -2079,12 +2081,12 @@ function drawSeats(hall, width, isLoggedIn, palette) {
         ctx.restore();
       }
 
-      // 座号文字（仅座位够大时）
+      // 大厅每个座位都标注座号，窄屏时自动使用更小字号。
       if (labelEnabled) {
-        ctx.font = `${10 * fontScale}px 'Noto Sans SC', sans-serif`;
+        ctx.font = `${labelFontSize}px 'Noto Sans SC', sans-serif`;
         ctx.fillStyle = "#03111f";
         ctx.textAlign = "center";
-        ctx.fillText(String(seatNumber), x, y + 3.5);
+        ctx.fillText(String(seatNumber), x, y + labelFontSize * 0.35);
       }
 
       // 记录坐标和半径，handleCanvasClick 用它做命中检测
@@ -2867,22 +2869,11 @@ function calculateRuleMatchMetric(hall, selectedSeats, audienceContext) {
   }
 
   const draft = audienceContext.draft;
-  const restriction = calculateAudienceRestriction(draft.members, hall.rows);
   const issues = [];
   let score = 20;
 
   if (selectedSeats.length !== draft.members.length) {
     issues.push("座位数量和同行人数还没有对应。");
-    score -= 8;
-  }
-
-  if (restriction.hasMinor && selectedSeats.some((seat) => seat.row <= 3)) {
-    issues.push("同行人中有未满 15 岁的观众，请避开前 3 排。");
-    score -= 8;
-  }
-
-  if (restriction.hasSenior && selectedSeats.some((seat) => seat.row > hall.rows - 3)) {
-    issues.push("同行人中有 60 岁以上的观众，请避开最后 3 排。");
     score -= 8;
   }
 
@@ -2894,7 +2885,7 @@ function calculateRuleMatchMetric(hall, selectedSeats, audienceContext) {
     return {
       score,
       status: "success",
-      reason: "这组座位符合同行人的年龄安排和票型要求。"
+      reason: "这组座位符合当前票型与同行人数的安排要求。"
     };
   }
 
@@ -3156,7 +3147,7 @@ function recommendSeatsForHall(hall, draft) {
 
 function calculateAudienceRestriction(audience, totalRows) {
   const hasMinor = audience.some((member) => member.age < 15);
-  const hasSenior = audience.some((member) => member.age > 60);
+  const hasSenior = audience.some((member) => member.age >= 60);
 
   return {
     hasMinor,
@@ -3289,7 +3280,7 @@ function buildRecommendationReasons(hall, ticketType, candidate, restriction) {
   }
 
   if (restriction.hasSenior) {
-    reasons.push("同行人中有 60 岁以上的观众，已为你避开最后 3 排。");
+    reasons.push("同行人中有 60 岁及以上的观众，已为你避开最后 3 排。");
   }
 
   reasons.push(`推荐位于第 ${candidate.row} 排，${rowTone}。`);
@@ -3319,7 +3310,7 @@ function buildRestrictionReasons(ticketType, restriction) {
   }
 
   if (restriction.hasSenior) {
-    reasons.push("同行人中有 60 岁以上的观众，请避开最后 3 排。");
+    reasons.push("同行人中有 60 岁及以上的观众，请避开最后 3 排。");
   }
 
   return reasons;

@@ -274,28 +274,35 @@
           </div>
         </section>
 
+        <!-- ============ STEP 02 座位图面板：Canvas + 缩略导航 + 图例 + 热度面板 ============ -->
         <section class="canvas-panel glass-card">
           <div class="panel-heading">
             <div>
               <p class="panel-heading__tag">STEP 02 · SEAT MAP</p>
               <h2>查看并调整座位</h2>
             </div>
+            <!-- 右上角工具：提示文案 + 全局/局部放大切换按钮（小厅隐藏） -->
             <div class="seat-view-tools">
               <span class="panel-heading__hint" id="seatViewHint">点击座位可手动调整</span>
+              <span class="realtime-status" data-realtime-status aria-live="polite">多人实时同步已连接</span>
               <button class="seat-view-mode" id="seatViewModeBtn" type="button" hidden>切换全局视图</button>
             </div>
           </div>
 
+          <!-- 座位图主区：左侧 Canvas，右侧图例/热度侧栏 -->
           <div class="seat-map-layout">
             <div class="seat-map-main">
               <div class="canvas-frame">
+                <!-- 左上角全厅缩略导航：放大模式下显示，拖亮框移动可视区域 -->
                 <aside class="seat-overview" id="seatOverview" aria-label="全厅缩略导航" hidden>
                   <div class="seat-overview__head">
                     <strong>全厅导览</strong>
                     <span>10 排</span>
                   </div>
                   <div class="seat-overview__map" id="seatOverviewMap">
+                    <!-- 缩略图 Canvas：JS 里把全厅座位缩成小点画上去 -->
                     <canvas id="seatMiniMap" width="280" height="104" aria-hidden="true"></canvas>
+                    <!-- 亮框：代表当前放大区域，可拖可方向键移动 -->
                     <button
                       class="seat-overview__viewport"
                       id="seatOverviewViewport"
@@ -305,15 +312,19 @@
                   </div>
                   <span class="seat-overview__hint">拖动亮框移动放大区域</span>
                 </aside>
+                <!-- 主座位 Canvas：弧形座位、状态填充、热度外圈、推荐/手动外圈都在这里画 -->
                 <canvas id="seatCanvas" width="1200" height="760" aria-label="影院座位图"></canvas>
               </div>
 
+              <!-- 选座读数：当前选了哪些座位 / 操作提示，aria-live 供无障碍播报 -->
               <div class="selection-readout selection-readout--map" id="selectionReadout" aria-live="polite">
                 还没选座。点击可选择一个座位；多选时请按住 Ctrl 再依次点击。
               </div>
             </div>
 
+            <!-- 右侧侧栏：座位状态图例 + 热度面板 -->
             <aside class="seat-map-sidebar" aria-label="座位图例与热度说明">
+              <!-- 座位状态图例：填充色含义 + 外圈标记含义 -->
               <section class="seat-guide-card">
                 <div class="seat-guide-card__head">
                   <p class="panel-heading__tag">SEAT GUIDE</p>
@@ -332,12 +343,14 @@
                 </div>
               </section>
 
+              <!-- 热度面板：显隐开关 + 热度图例 + 热源统计 + 状态文案 -->
               <section class="heat-panel" aria-labelledby="heatPanelTitle">
                 <div class="heat-panel__head">
                   <div>
                     <p class="panel-heading__tag">SEAT HEAT</p>
                     <h3 id="heatPanelTitle">选座热度</h3>
                   </div>
+                  <!-- 热度外圈显隐开关：控制 isHeatVisible，重绘 Canvas -->
                   <label class="heat-toggle">
                     <input id="heatVisibilityToggle" type="checkbox" checked />
                     <span>显示外圈</span>
@@ -348,6 +361,7 @@
                   绿色座椅可以选择，外围细圈显示附近热度，二者互不影响。
                 </p>
 
+                <!-- 热度图例：外圈颜色含义（红热门/黄一般/绿冷门） -->
                 <div class="heat-legend" aria-label="热度图例">
                   <strong class="heat-legend__title">外围热度</strong>
                   <span><i class="heat-legend__dot heat-legend__dot--hot"></i>热门</span>
@@ -355,6 +369,7 @@
                   <span><i class="heat-legend__dot heat-legend__dot--cold"></i>冷门</span>
                 </div>
 
+                <!-- 热源统计：JS renderHeatPanel 填充"已预订/已购票"数量 -->
                 <div class="heat-source-stats" id="heatSourceStats" aria-live="polite"></div>
                 <p class="heat-panel__status" id="heatStatus"></p>
               </section>
@@ -481,7 +496,10 @@
               <p class="panel-heading__tag">SYSTEM OVERVIEW</p>
               <h2>后台概览</h2>
             </div>
-            <span class="panel-heading__hint">管理员账号仅由系统初始化创建</span>
+            <div class="panel-heading__meta">
+              <span class="panel-heading__hint">管理员账号仅由系统初始化创建</span>
+              <span class="realtime-status" data-realtime-status aria-live="polite">多人实时同步已连接</span>
+            </div>
           </div>
 
           <div class="admin-metrics">

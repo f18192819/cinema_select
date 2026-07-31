@@ -39,19 +39,32 @@ big_homework/
 
 影厅座位、用户与订单集中保存在 `state` 中，任何预订、购票、取消、退票或管理员座位修改都会调用 `saveState()` 保存并重新渲染。这样普通用户端、热度边框和管理员后台读取的是同一份数据。
 
-### 3. 用 Canvas 承担视觉密度高的座位交互
+### 3. 多标签页实时协作采用本地模拟
+
+本项目没有后端，因此不建立真实 WebSocket 服务器；加分项采用 `BroadcastChannel` 主动广播、`storage` 事件兜底接收，实现同一浏览器不同标签页的实时座位同步。登录会话改存入 `sessionStorage`，每个标签页可独立登录管理员或不同普通用户；`runSeatStateTransaction()` 会在提交前重读最新座位数据并加浏览器锁，避免同一座位被重复预订或购票。
+
+### 4. 用 Canvas 承担视觉密度高的座位交互
+
+<!-- 组员2负责模块导读：本节描述座位图/弧形布局/热度/选座的整体设计，
+     对应代码见 app.js 的 drawSeats()、renderSeatCanvas()、handleCanvasClick()、
+     getHeatSourceSeats() 等。先读这一节建立整体认识，再去看具体函数。 -->
 
 三种影厅都由 `drawSeats()` 按行列和弧形曲线计算座位坐标，再根据状态绘制内部颜色、热度边框、推荐外圈和手动选择外圈。点击检测仍使用同一组 Canvas 坐标，保证绘制和交互一致。
 
-### 4. 推荐与评分分别解决“怎么选”和“选得怎么样”
+### 5. 推荐与评分分别解决“怎么选”和“选得怎么样”
 
 推荐模块先校验票型、人数与年龄约束，再搜索连续空座；评分模块从距离、水平视角、周围空位和规则匹配四个维度汇总为系统评分，并可结合 1-5 星人工评分。
 
-### 5. 热度基于真实座位状态缓慢扩散
+### 6. 热度基于真实座位状态缓慢扩散
+
+<!-- 组员2负责模块导读：热度地图的设计思路。
+     热源收集 → getHeatSourceSeats()；距离衰减 → getHeatInfluenceByDistance()；
+     单座热度 → calculateSeatHeat()；外圈颜色 → getHeatBorderColor()。
+     "用 Map 去重"指 getHeatSourceSeats 里同一座位取最大权重。 -->
 
 热度来源为已售、已购票和已预订座位。系统先用 `Map` 为热源去重，再按距离分段累计影响，最后只用座位外圈的颜色和微弱发光显示热度，避免覆盖座位实际状态。
 
-### 6. 无障碍和响应式作为全局能力
+### 7. 无障碍和响应式作为全局能力
 
 大字体、高对比度、色盲友好和语音提示均通过 `body` 模式类和 `smartCinemaAccessibility` 持久化，切换后立即影响现有页面，不需要重载或额外页面。
 
@@ -59,9 +72,9 @@ big_homework/
 
 | 键名 | 用途 |
 |---|---|
-| `smartCinemaState` | 影厅、座位、订单、旧版用户兼容状态与当前用户 ID |
+| `smartCinemaState` | 影厅、座位、订单与实时同步版本号 |
 | `smartCinemaUsers` | 统一用户列表，保存 `id`、`username`、`password`、`role`、`memberLevel`、`createdAt` 等演示数据 |
-| `smartCinemaCurrentUser` | 当前登录会话，只保存用户 ID、用户名、角色、会员等级和登录时间，不保存密码 |
+| `smartCinemaTabSession` | 当前标签页的独立登录会话，保存在 SessionStorage，不会覆盖其他标签页身份 |
 | `smartCinemaAccessibility` | 大字体、高对比度、色盲友好、语音提示开关 |
 
 > 本项目为前端课程演示，密码保存在 LocalStorage 中仅用于本地功能展示，不能用于真实生产系统。
@@ -76,11 +89,14 @@ big_homework/
 | 三个影厅与弧形座位图 | `hallsConfig`、`buildSeats()`、`renderHallTabs()`、`renderSeatCanvas()`、`drawSeats()` | 小厅 100 座、中厅 200 座、大厅 300 座，均为 10 排；Canvas 负责弧形布局和状态颜色。 |
 | 座位状态与本地初始化 | `soldPatternByHall()`、`getSeatPalette()`、`loadState()`、`saveState()` | 支持空座、选中、已售、已预订、维修/禁用等状态，并持久化到 LocalStorage。 |
 | 模块 1：智能推荐选座 | `handleRecommendSeats()`、`recommendSeatsForHall()`、`calculateAudienceRestriction()` 及其候选座位辅助函数 | 支持个人、情侣、家庭、团体票；处理少年、老年人、连续座位和团体同排约束，并输出推荐理由。 |
+<!-- 组员2负责模块对照表：下面"模块2 手动选座"和"模块3 热度地图"两行
+     列出了你负责部分的核心函数名，可在 app.js 里直接搜索跳转。 -->
 | 模块 2：手动选座 | `handleCanvasClick()`、`handleCanvasPointerDown()`、`handleCanvasPointerMove()`、`handleCanvasPointerUp()` | 支持单选、`Ctrl` 多选、推荐后手动修改和拖拽框选。 |
 | 模块 3：影院热度地图 | `getHeatSourceSeats()`、`getHeatInfluenceByDistance()`、`calculateSeatHeat()`、`getHeatBorderColor()`、`renderHeatPanel()`；Canvas 的 `drawSeats()` | 热度由预订/购票/已售座位按距离分段扩散并累加，只绘制外圈边框。当前版本不包含作业说明中的“一周播放动画”。 |
 | 模块 4：观影体验评分 | `updateExperienceScore()`、`calculateSystemExperienceScore()`、`handleUserRating()`、`renderExperienceScoreState()` | 根据距离、居中程度、周边空位和规则匹配给出分数与等级，并显示用户评分后的综合结果。 |
 | 模块 5：无障碍模式 | `handleAccessibilityToggle()`、`applyAccessibilitySettings()`、`renderAccessibilityState()`、`speakMessage()`；`style.css` 的 `mode-large-text`、`mode-high-contrast`、`mode-colorblind` | 支持大字体、高对比度、色盲友好和 SpeechSynthesis 语音提示，配置会保存。 |
 | 模块 6：订单中心 | `handleCreateOrder()`、`validateOrderSelection()`、`handleOrderListAction()`、`updateOrderStatus()`、`renderOrderCenter()` | 支持预订、取消预订、购票和退票；订单状态会同步更新座位。 |
+| 加分项：多人实时座位更新 | `initializeRealtimeSync()`、`BroadcastChannel`、`handleSharedStateStorageEvent()`、`runSeatStateTransaction()`、`sessionStorage` 会话函数 | 不依赖后端，模拟多用户多标签页在线；管理员和用户身份独立，座位变化实时重绘，冲突订单由事务锁和提交前校验拦截。 |
 | 管理员扩展 | `renderAdminDashboard()`、`renderAdminSeatCanvas()`、`handleAdminSeatCanvasClick()`、`handleAdminOrderAction()`、`handleAdminResetHall()`、`renderAdminUsers()` | 管理员可查看概览、修改座位、重置影厅、管理全部订单和查看普通用户；不展示用户密码。 |
 
 ## 作业要求完成情况
@@ -94,7 +110,7 @@ big_homework/
 | PC、平板、手机响应式布局 | 已完成基础适配 |
 | AI 问答式观影顾问 | 未单独实现；当前为表单式智能推荐 |
 | 一周热度变化播放 | 未实现；当前为订单/座位状态实时热度扩散 |
-| WebSocket 多人实时更新 | 未实现；当前为本地数据同步 |
+| WebSocket 多人实时更新 | 已完成本地多人在线模拟：使用 `BroadcastChannel + storage` 实时同步；真实 WebSocket 服务端不在本项目范围内 |
 
 ## 验证建议
 

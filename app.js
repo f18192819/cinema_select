@@ -257,10 +257,26 @@ function handleHeatVisibilityChange(event) {
   renderCurrentHall();
 }
 
+/* ================================================================
+   局部放大视图（中厅/大厅专用）
+   ----------------------------------------------------------------
+   小厅座位少（10×10），始终显示全厅；中厅(20×10)、大厅(30×10)座位多，
+   在"全局视图"和"局部放大"之间切换。局部放大时只渲染视口(viewport)内的
+   座位，并用左上角缩略图(seatOverview)导航。viewport 用 0~1 的比例坐标。
+   ================================================================ */
+
+/**
+ * 当前影厅是否处于局部放大模式。小厅永远返回 false。
+ */
 function isSeatZoomEnabled(hall) {
   return Boolean(hall && hall.id !== "small" && seatViewModes[hall.id] === "zoom");
 }
 
+/**
+ * 取当前影厅的可视区域(viewport)。未放大时返回占满全厅的 {0,0,1,1}。
+ * 放大时返回 seatViewports[hall.id]，如 {x:0.22, y:0.2, width:0.56, height:0.56}，
+ * 表示只看左上 22%/20% 起、宽高各 56% 的那块区域。
+ */
 function getSeatViewport(hall) {
   if (!isSeatZoomEnabled(hall)) {
     return { x: 0, y: 0, width: 1, height: 1 };
@@ -269,18 +285,22 @@ function getSeatViewport(hall) {
   return seatViewports[hall.id];
 }
 
+/**
+ * 根据当前影厅刷新"放大/全局"按钮、缩略图显隐和提示文案。
+ * 小厅不支持放大，按钮隐藏；中大厅切换按钮文案与状态样式。
+ */
 function renderSeatViewControls(hall) {
   if (!dom.seatViewModeBtn || !dom.seatOverview) {
     return;
   }
 
-  const supportsZoom = hall.id !== "small";
+  const supportsZoom = hall.id !== "small"; // 小厅座位少，不需要放大
   const zoomEnabled = supportsZoom && isSeatZoomEnabled(hall);
   dom.seatViewModeBtn.hidden = !supportsZoom;
   dom.seatViewModeBtn.classList.toggle("is-zoomed", zoomEnabled);
   dom.seatViewModeBtn.setAttribute("aria-pressed", String(zoomEnabled));
   dom.seatViewModeBtn.textContent = zoomEnabled ? "切换全局视图" : "开启局部放大";
-  dom.seatOverview.hidden = !zoomEnabled;
+  dom.seatOverview.hidden = !zoomEnabled; // 缩略导航只在放大时出现
   dom.canvas.parentElement.classList.toggle("is-zoomed", zoomEnabled);
 
   if (dom.seatViewHint) {
@@ -292,6 +312,9 @@ function renderSeatViewControls(hall) {
   }
 }
 
+/**
+ * 点击"切换全局/局部"按钮：在中大厅上翻转 seatViewModes，并清空拖拽选区。
+ */
 function handleSeatViewModeToggle() {
   const hall = state.halls[selectedHallId];
   if (!hall || hall.id === "small") {
@@ -299,10 +322,16 @@ function handleSeatViewModeToggle() {
   }
 
   seatViewModes[hall.id] = isSeatZoomEnabled(hall) ? "full" : "zoom";
-  dragSelection = createEmptyDragSelection();
+  dragSelection = createEmptyDragSelection(); // 切换视图后清掉正在进行的框选
   renderCurrentHall();
 }
 
+/* ---- 缩略图(seatOverview)上的指针/键盘交互：拖亮框移动放大区域 ---- */
+
+/**
+ * 在缩略图上按下：开始拖动亮框(viewport)。若点在亮框内，则"抓住"亮框按偏移移动；
+ * 若点在亮框外，则把亮框中心跳到点击点再开始拖。用 pointerCapture 保证移出元素仍能跟踪。
+ */
 function handleSeatOverviewPointerDown(event) {
   const hall = state.halls[selectedHallId];
   if (!isSeatZoomEnabled(hall)) {
@@ -314,6 +343,8 @@ function handleSeatOverviewPointerDown(event) {
   const point = getSeatOverviewPoint(event);
   const viewport = getSeatViewport(hall);
   const startedOnViewport = event.target === dom.seatOverviewViewport;
+  // 点在亮框内：记录指针相对亮框左上的偏移，后续移动保持这个偏移（像拖窗框）
+  // 点在亮框外：偏移设为亮框一半，效果是亮框中心跳到指针位置
   miniMapDragOffset = startedOnViewport
     ? { x: point.x - viewport.x, y: point.y - viewport.y }
     : { x: viewport.width / 2, y: viewport.height / 2 };
@@ -324,6 +355,9 @@ function handleSeatOverviewPointerDown(event) {
   updateSeatViewportFromOverviewPoint(hall, point);
 }
 
+/**
+ * 缩略图上移动：仅处理本次按下捕获的指针，更新亮框位置并重绘 Canvas。
+ */
 function handleSeatOverviewPointerMove(event) {
   if (miniMapDragPointerId !== event.pointerId) {
     return;
@@ -338,6 +372,9 @@ function handleSeatOverviewPointerMove(event) {
   updateSeatViewportFromOverviewPoint(hall, getSeatOverviewPoint(event));
 }
 
+/**
+ * 松开：释放指针捕获，结束本次拖动。
+ */
 function handleSeatOverviewPointerUp(event) {
   if (miniMapDragPointerId !== event.pointerId) {
     return;
@@ -351,6 +388,10 @@ function handleSeatOverviewPointerUp(event) {
   miniMapDragPointerId = null;
 }
 
+/**
+ * 键盘方向键移动亮框（无障碍/精细调整）。Shift 加大步长。
+ * clamp 保证亮框不超出 [0,1] 范围：x ∈ [0, 1-width]。
+ */
 function handleSeatOverviewKeyDown(event) {
   const hall = state.halls[selectedHallId];
   if (!isSeatZoomEnabled(hall)) {
@@ -370,11 +411,15 @@ function handleSeatOverviewKeyDown(event) {
   event.preventDefault();
   const viewport = seatViewports[hall.id];
   const step = event.shiftKey ? 0.08 : 0.035;
+  // 注意上限是 1 - viewport.width：亮框右边贴到 1 时就不能再往右
   viewport.x = clamp(viewport.x + direction[0] * step, 0, 1 - viewport.width);
   viewport.y = clamp(viewport.y + direction[1] * step, 0, 1 - viewport.height);
   renderSeatCanvasForCurrentView();
 }
 
+/**
+ * 把鼠标客户端坐标换算成缩略图内的 0~1 比例坐标。
+ */
 function getSeatOverviewPoint(event) {
   const rect = dom.seatOverviewMap.getBoundingClientRect();
   return {
@@ -383,6 +428,10 @@ function getSeatOverviewPoint(event) {
   };
 }
 
+/**
+ * 用缩略图上的比例坐标更新亮框位置，并立刻重绘主 Canvas。
+ * clamp 的上限 1-width 保证亮框不越界。
+ */
 function updateSeatViewportFromOverviewPoint(hall, point) {
   const viewport = seatViewports[hall.id];
   viewport.x = clamp(point.x - miniMapDragOffset.x, 0, 1 - viewport.width);
@@ -390,6 +439,9 @@ function updateSeatViewportFromOverviewPoint(hall, point) {
   renderSeatCanvasForCurrentView();
 }
 
+/**
+ * 用当前影厅和登录态重绘主 Canvas（放大模式下只画 viewport 内的座位）。
+ */
 function renderSeatCanvasForCurrentView() {
   const hall = state.halls[selectedHallId];
   const currentUser = getCurrentUser();
@@ -1302,6 +1354,11 @@ function getSeatStatusLabel(status) {
   return labels[status] || "未知状态";
 }
 
+/**
+ * 渲染右侧"选座热度"面板：统计热源数量、同步显隐开关、给出文案说明。
+ * 热源分两档：weight=55（已预订）、weight=80（已购票/已售）。
+ * 注意这里只渲染面板文字，座位外圈热度颜色是在 drawSeats() 里画的。
+ */
 function renderHeatPanel(hall) {
   if (!dom.heatVisibilityToggle || !dom.heatSourceStats || !dom.heatStatus) {
     return;
@@ -1388,6 +1445,11 @@ function showAdminView() {
   dom.adminScreen.hidden = false;
 }
 
+/**
+ * 从 CSS 变量读取座位配色（空座/选中/已售/已预订/禁用/推荐外圈/手动外圈/选区）。
+ * 这样 Canvas 绘制的颜色和无障碍模式切换的 CSS 变量保持一致：
+ * 切换高对比度/色盲模式时，CSS 变量改变，Canvas 重绘也会自动跟上。
+ */
 function getSeatPalette() {
   const styles = getComputedStyle(document.body);
   return {
@@ -1406,16 +1468,28 @@ function getSeatPalette() {
   };
 }
 
+/**
+ * 取座位的列号（用于热度距离计算）。优先 col，回退 number。
+ */
 function getSeatColumn(seat) {
   return Number(seat.col || seat.number || 0);
 }
 
+/**
+ * 把热度分数(0~100)映射成外圈颜色：≥55 红(热门)、≥25 黄(一般)、其余绿(冷门)。
+ * 阈值与 getHeatInfluenceByDistance 的分档对应。
+ */
 function getHeatBorderColor(score) {
   if (score >= 55) return "#ef4444";
   if (score >= 25) return "#facc15";
   return "#22c55e";
 }
 
+/**
+ * 画一个圆角矩形路径（不填充不描边，只构造路径，供后续 fill/stroke）。
+ * 优先用浏览器原生 roundRect；不支持时用二次贝塞尔手画四角。
+ * safeRadius 防止圆角超过宽高的一半。
+ */
 function drawRoundedRectPath(context, left, top, width, height, radius) {
   const safeRadius = Math.max(0, Math.min(radius, width / 2, height / 2));
   context.beginPath();
@@ -1437,16 +1511,38 @@ function drawRoundedRectPath(context, left, top, width, height, radius) {
   context.closePath();
 }
 
+/**
+ * 以 (x,y) 为中心、halfSize 为半边长画圆角方块路径（座位的形状）。
+ * 圆角取半边长的 0.45 倍，让座位看起来接近参考图的圆角方凳。
+ */
 function drawRoundedSeatPath(context, x, y, halfSize) {
   const size = halfSize * 2;
   drawRoundedRectPath(context, x - halfSize, y - halfSize, size, size, Math.max(2, halfSize * 0.45));
 }
 
+/**
+ * 点击命中检测：判断 (pointerX,pointerY) 是否落在某座位方块内。
+ * padding 放大命中范围，让小座位也容易点中（体验优化，不影响绘制）。
+ */
 function isPointInsideSeat(pointerX, pointerY, seat, padding = 4) {
   const halfSize = seat.radius + padding;
   return Math.abs(pointerX - seat.x) <= halfSize && Math.abs(pointerY - seat.y) <= halfSize;
 }
 
+/* ================================================================
+   热度地图：数据归一化 + 热源收集 + 距离扩散 + 单座热度计算
+   ----------------------------------------------------------------
+   思路：热度来源 = 已售/已购票/已预订的座位（"热源"）。
+   每个热源按"距离分段"向周围座位扩散影响值，多个热源的影响累加，
+   最后 clamp 到 0~100，用外圈颜色(红/黄/绿)呈现。
+   座位内部颜色始终代表状态，外圈颜色代表热度，两者互不影响。
+   ================================================================ */
+
+/**
+ * 把各种形态的座位标识归一化成 "排号-座号"（如 "3-5"）。
+   接受字符串("3-5"/"3排5座")、对象(seat.id / seat.row+number / seat.label)。
+   归一化是为了让订单里格式不一的座位字段也能和当前影厅座位对上号。
+ */
 function normalizeSeatId(seat) {
   if (typeof seat === "string") {
     const match = seat.match(/(\d+)\D+(\d+)/);
@@ -1470,6 +1566,9 @@ function normalizeSeatId(seat) {
   return seat.label ? normalizeSeatId(seat.label) : null;
 }
 
+/**
+ * 为某影厅建 "座位id -> 座位对象" 的 Map，便于按 id 快速查座位。
+ */
 function buildSeatMap(hall) {
   const seatMap = new Map();
   hall.seats.forEach((seat) => {
@@ -1481,6 +1580,12 @@ function buildSeatMap(hall) {
   return seatMap;
 }
 
+/**
+ * 收集所有"有效订单"用于热度计算（兼容旧版/多键名存储）。
+   会从 state.orders 以及 LocalStorage 里几个可能的旧键名读取并合并，
+   再按 orderNo/id 去重，只保留有热度权重的订单（已预订/已购票，排除取消/退票）。
+   兼容多种字段名是为了让旧数据也能产生热度，画面不至于全冷。
+ */
 function getValidOrdersForHeat() {
   const orderCollections = [Array.isArray(state.orders) ? state.orders : []];
   [STORAGE_KEY, "orders", "smartCinemaOrders", "cinemaOrders"].forEach((key) => {
@@ -1514,6 +1619,10 @@ function getValidOrdersForHeat() {
     });
 }
 
+/**
+ * 订单的热度权重：已购票/已售=80，已预订=55，取消/退票=0（不产生热度）。
+   兼容中英文状态字段。
+ */
 function getOrderHeatWeight(order) {
   const statuses = [order?.status, order?.statusCode]
     .filter(Boolean)
@@ -1533,6 +1642,10 @@ function getOrderHeatWeight(order) {
   return statuses.some((status) => reservedStatuses.includes(status)) ? 55 : 0;
 }
 
+/**
+ * 判断订单是否属于当前影厅（按 hallId/hallName 等多字段比对，大小写无关）。
+   订单没有影厅信息时视为匹配（保守地把它的热度算进来）。
+ */
 function doesOrderMatchHall(order, hall) {
   const orderHallValues = [order.hallId, order.hallName, order.hall, order.roomId, order.roomName]
     .filter((value) => value !== undefined && value !== null && String(value).trim() !== "")
@@ -1548,6 +1661,10 @@ function doesOrderMatchHall(order, hall) {
   return orderHallValues.some((value) => hallValues.includes(value));
 }
 
+/**
+ * 从订单里取出座位条目（兼容 seatKeys/seats/seatList 等多种字段名）。
+   返回数组；若只有单个座位字段则包成单元素数组。
+ */
 function getOrderSeatEntries(order) {
   const seatFields = [order.seatKeys, order.seats, order.seatList, order.selectedSeats, order.seatIds, order.seat];
   const entries = seatFields.find((field) => Array.isArray(field));
@@ -1560,6 +1677,9 @@ function getOrderSeatEntries(order) {
   return singleEntry == null ? [] : [singleEntry];
 }
 
+/**
+ * 单个座位状态的热度权重（和订单权重一致：已售/已购票=80，已预订=55）。
+ */
 function getSeatHeatWeight(status) {
   const normalizedStatus = String(status || "").trim().toLowerCase();
   if (["paid", "purchased", "sold", "completed", "已购票", "已售"].includes(normalizedStatus)) {
@@ -1569,6 +1689,12 @@ function getSeatHeatWeight(status) {
   return ["reserved", "booked", "已预订"].includes(normalizedStatus) ? 55 : 0;
 }
 
+/**
+ * 汇总某影厅的全部"热源座位"（带权重）。
+   先扫影厅自身座位状态，再扫所有匹配该厅的有效订单，
+   同一座位取最大权重（购票优先于预订），返回 [{row,col,weight}]。
+   这是 calculateSeatHeat 的输入。
+ */
 function getHeatSourceSeats(hall) {
   const seatMap = buildSeatMap(hall);
   const sourceWeights = new Map();
@@ -1605,12 +1731,23 @@ function getHeatSourceSeats(hall) {
     .filter((source) => source.row > 0 && source.col > 0);
 }
 
+/**
+ * 某座位到某热源的欧氏距离（行差、列差的勾股距离）。
+   用行列坐标算距离，所以热度会沿"座位网格"扩散，而不是按像素。
+ */
 function getSeatDistance(seat, source) {
   const rowDiff = Number(seat.row) - Number(source.row);
   const colDiff = getSeatColumn(seat) - Number(source.col);
   return Math.sqrt(rowDiff * rowDiff + colDiff * colDiff);
 }
 
+/**
+ * 热度随距离衰减的分档表（核心调参点）：
+   - 购票热源(权重80)：本座80、相邻1格30、2格14、3格6，再远为0
+   - 预订热源(权重55)：本座55、相邻1格20、2格9、3格4，再远为0
+   距离越近影响越大，超过 HEAT_RADIUS(=3) 就不再扩散。
+   多个热源的影响会在 calculateSeatHeat 里累加。
+ */
 function getHeatInfluenceByDistance(distance, sourceWeight) {
   const isPaidSource = sourceWeight >= 80;
 
@@ -1629,6 +1766,10 @@ function getHeatInfluenceByDistance(distance, sourceWeight) {
   return 0;
 }
 
+/**
+ * 计算单个座位的最终热度(0~100)：累加所有热源对它的影响，再 clamp 取整。
+   heatSources 可传入避免重复计算（drawSeats 会复用同一份热源数组）。
+ */
 function calculateSeatHeat(seat, hall, heatSources = getHeatSourceSeats(hall)) {
   const heatScore = heatSources.reduce((total, source) => {
     const distance = getSeatDistance(seat, source);
@@ -1638,6 +1779,22 @@ function calculateSeatHeat(seat, hall, heatSources = getHeatSourceSeats(hall)) {
   return Math.round(clamp(heatScore, 0, 100));
 }
 
+/* ================================================================
+   Canvas 绘制主流程：renderSeatCanvas → drawCanvasChrome + drawSeats
+   ----------------------------------------------------------------
+   每次选座/切换影厅/开关热度都会重绘整张 Canvas。流程：
+   1) 按容器宽度算逻辑尺寸，按 devicePixelRatio 设画布像素（高清不糊）
+   2) 放大模式下用 ctx.scale/translate 把视口映射到全画布
+   3) drawCanvasChrome 画银幕、标题、底部提示
+   4) drawSeats 画所有座位（弧形坐标 + 状态填充 + 热度外圈 + 推荐/手动外圈）
+   5) drawDragSelectionOverlay 画拖拽选框
+   6) renderSeatMiniMap 画左上角缩略图
+   ================================================================ */
+
+/**
+ * 主 Canvas 渲染入口。设置尺寸、处理放大变换、调用各绘制子函数。
+   isLoggedIn 决定座位描边和提示文案（未登录时座位偏暗、提示"登录后选座"）。
+ */
 function renderSeatCanvas(hall, isLoggedIn) {
   const canvas = dom.canvas;
   const containerWidth = canvas.parentElement.clientWidth;
@@ -1658,17 +1815,24 @@ function renderSeatCanvas(hall, isLoggedIn) {
   ctx.clearRect(0, 0, logicalWidth, logicalHeight);
   ctx.save();
   if (zoomEnabled) {
+    // 放大模式：把 viewport 这块区域放大到整个画布
+    // scale = 1/viewport.width（视口越窄放大越多），再平移把视口左上角对齐到画布原点
     const scale = 1 / viewport.width;
     ctx.scale(scale, scale);
     ctx.translate(-viewport.x * logicalWidth, -viewport.y * logicalHeight);
   }
   drawCanvasChrome(logicalWidth, logicalHeight, hall, isLoggedIn, palette);
-  renderedSeats = drawSeats(hall, logicalWidth, isLoggedIn, palette);
+  renderedSeats = drawSeats(hall, logicalWidth, isLoggedIn, palette); // 返回座位坐标供点击命中用
   drawDragSelectionOverlay(palette);
   ctx.restore();
   renderSeatMiniMap(hall, palette);
 }
 
+/**
+ * 渲染左上角缩略图(seatMiniMap)：把全厅座位按比例缩成小点，
+   并把当前 viewport 亮框定位到缩略图上（CSS 控制 .seat-overview__viewport 的位置）。
+   只在放大模式下调用。
+ */
 function renderSeatMiniMap(hall, palette) {
   if (!miniMapCtx || !dom.seatMiniMap || !dom.seatOverviewViewport || !isSeatZoomEnabled(hall)) {
     return;
@@ -1722,6 +1886,10 @@ function renderSeatMiniMap(hall, palette) {
   dom.seatOverviewViewport.style.height = `${viewport.height * 100}%`;
 }
 
+/**
+ * 画 Canvas 的"装饰件"：顶部银幕弧线、影厅标题、底部操作提示。
+   fontScale 让大字体模式下文字同步放大。
+ */
 function drawCanvasChrome(width, height, hall, isLoggedIn, palette) {
   const fontScale = accessibilityState.largeText ? 1.4 : 1;
   ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
@@ -1759,24 +1927,41 @@ function drawCanvasChrome(width, height, hall, isLoggedIn, palette) {
   );
 }
 
+/**
+ * 画全部座位并返回每个座位的画布坐标（供点击命中检测用）。
+ *
+ * 【弧形布局原理】（作业要求：座位必须呈弧形排列）
+ *  - 每排座位在同一水平基线 rowBaseY 上，但每个座位的 y 会按"距排中心的程度"下沉：
+ *      normalized = 座位在排内的归一化位置(-0.5 ~ +0.5)，排中心为0
+ *      y = rowBaseY + curveStrength * (normalized*2)^2
+ *    (normalized*2)^2 是个 U 形抛物线：排中心为0不下沉，越靠两端下沉越多 → 形成弧形
+ *  - curveStrength 控制弧度大小（窄屏18、宽屏24）
+ *
+ * 【绘制层次】每个座位从内到外画三层：
+ *  1) 填充色：按状态(空座/选中/已售/已预订/禁用)取色，带发光
+ *  2) 外圈：开热度时画热度色(红/黄/绿)；关热度时画白色细圈
+ *  3) 推荐外圈(青)/手动外圈(白)：比座位大一圈，标识推荐或手动选择
+ *  小座位(≤20座且半径够大)才画座号文字，避免拥挤。
+ */
 function drawSeats(hall, width, isLoggedIn, palette) {
   const fontScale = accessibilityState.largeText ? 1.4 : 1;
-  const marginX = width < 480 ? 26 : 74;
-  const startY = 170;
-  const rowGap = width < 480 ? 46 : 48;
-  const curveStrength = width < 480 ? 18 : 24;
+  const marginX = width < 480 ? 26 : 74; // 座位区左右留白
+  const startY = 170;                    // 第一排的起始 y
+  const rowGap = width < 480 ? 46 : 48;   // 排间距
+  const curveStrength = width < 480 ? 18 : 24; // 弧度强度，越大越弯
   const rows = hall.rows;
   const seatsPerRow = hall.seatsPerRow;
   const maxSeatWidth = width - marginX * 2;
-  const seatGap = maxSeatWidth / Math.max(seatsPerRow - 1, 1);
-  const seatRadius = Math.max(4, Math.min(12, seatGap * 0.3));
-  const labelEnabled = seatsPerRow <= 20 && seatRadius >= 7;
+  const seatGap = maxSeatWidth / Math.max(seatsPerRow - 1, 1); // 同排相邻座位 x 间距
+  const seatRadius = Math.max(4, Math.min(12, seatGap * 0.3)); // 座位半边长，随密度自适应
+  const labelEnabled = seatsPerRow <= 20 && seatRadius >= 7;   // 只在座位够大时画座号
   const seats = [];
-  const heatSources = getHeatSourceSeats(hall);
+  const heatSources = getHeatSourceSeats(hall); // 本厅热源，复用给所有座位避免重复算
 
   for (let row = 1; row <= rows; row += 1) {
-    const rowBaseY = startY + (row - 1) * rowGap;
+    const rowBaseY = startY + (row - 1) * rowGap; // 该排的水平基线 y
 
+    // 画排号 R01/R02...
     ctx.font = `${12 * fontScale}px Orbitron, sans-serif`;
     ctx.textAlign = "left";
     ctx.fillStyle = "rgba(157, 182, 208, 0.86)";
@@ -1784,16 +1969,19 @@ function drawSeats(hall, width, isLoggedIn, palette) {
 
     for (let seatNumber = 1; seatNumber <= seatsPerRow; seatNumber += 1) {
       const index = seatNumber - 1;
+      // 归一化到 -0.5~+0.5（排中心为0），用于算弧形下沉量
       const normalized = seatsPerRow === 1 ? 0 : index / (seatsPerRow - 1) - 0.5;
-      const x = marginX + index * seatGap;
+      const x = marginX + index * seatGap; // x 按等间距排列
+      // 弧形：靠两端的座位 y 更大（更靠下），呈微笑形弧线
       const y = rowBaseY + curveStrength * Math.pow(normalized * 2, 2);
       const seatData = hall.seats[(row - 1) * seatsPerRow + index];
       const seatKey = `${seatData.row}-${seatData.number}`;
       const isSelected = selectedSeatKeys.includes(seatKey);
       const isRecommended = recommendedSeatKeys.includes(seatKey);
-      const isManualSelected = isSelected && !isRecommended;
+      const isManualSelected = isSelected && !isRecommended; // 选中但非推荐 = 手动改的
       const heatScore = calculateSeatHeat(seatData, hall, heatSources);
       const heatBorderColor = getHeatBorderColor(heatScore);
+      // 填充色优先按状态，状态为空座时再看是否选中
       const fillColor = seatData.status === "sold"
         ? palette.seatSold
         : seatData.status === "reserved"
@@ -1804,6 +1992,7 @@ function drawSeats(hall, width, isLoggedIn, palette) {
             ? palette.seatSelected
             : palette.seatAvailable;
 
+      // 第1层：填充座位本体（带发光）
       ctx.save();
       drawRoundedSeatPath(ctx, x, y, seatRadius);
       ctx.fillStyle = fillColor;
@@ -1812,12 +2001,13 @@ function drawSeats(hall, width, isLoggedIn, palette) {
       ctx.fill();
       ctx.shadowBlur = 0;
 
+      // 第2层：外圈——热度色 或 白色细圈
       if (isHeatVisible) {
         drawRoundedSeatPath(ctx, x, y, seatRadius + 1.2);
         ctx.strokeStyle = heatBorderColor;
         ctx.lineWidth = Math.max(1, Math.min(2, seatRadius * 0.2));
         ctx.shadowColor = heatBorderColor;
-        ctx.shadowBlur = heatScore >= 55 ? 4 : 2;
+        ctx.shadowBlur = heatScore >= 55 ? 4 : 2; // 热门座位发光更强
       } else {
         drawRoundedSeatPath(ctx, x, y, seatRadius);
         ctx.strokeStyle = isLoggedIn ? "rgba(255,255,255,0.68)" : "rgba(255,255,255,0.28)";
@@ -1826,6 +2016,7 @@ function drawSeats(hall, width, isLoggedIn, palette) {
       ctx.stroke();
       ctx.restore();
 
+      // 第3层(可选)：推荐外圈——青色，比座位大一圈
       if (isRecommended) {
         ctx.save();
         drawRoundedSeatPath(ctx, x, y, seatRadius + 4);
@@ -1837,6 +2028,7 @@ function drawSeats(hall, width, isLoggedIn, palette) {
         ctx.restore();
       }
 
+      // 第3层(可选)：手动选择外圈——金色/白色
       if (isManualSelected) {
         ctx.save();
         drawRoundedSeatPath(ctx, x, y, seatRadius + 4);
@@ -1848,6 +2040,7 @@ function drawSeats(hall, width, isLoggedIn, palette) {
         ctx.restore();
       }
 
+      // 座号文字（仅座位够大时）
       if (labelEnabled) {
         ctx.font = `${10 * fontScale}px 'Noto Sans SC', sans-serif`;
         ctx.fillStyle = "#03111f";
@@ -1855,6 +2048,7 @@ function drawSeats(hall, width, isLoggedIn, palette) {
         ctx.fillText(String(seatNumber), x, y + 3.5);
       }
 
+      // 记录坐标和半径，handleCanvasClick 用它做命中检测
       seats.push({
         key: seatKey,
         status: seatData.status,
@@ -1868,9 +2062,23 @@ function drawSeats(hall, width, isLoggedIn, palette) {
   return seats;
 }
 
+/* ================================================================
+   手动选座 + 拖拽框选：Canvas 上的鼠标交互
+   ----------------------------------------------------------------
+   交互规则（见 USER_MANUAL 3.2）：
+   - 单击空座：选中/取消（单选，再点已选的会清空）
+   - Ctrl/⌘ + 单击：多选切换（加/减一个）
+   - 空白处按下拖动：框选矩形内所有空座（拖拽选座，加分项）
+   - 已售/已预订/禁用座位不可选
+   拖拽和点击会冲突：拖拽结束后用 suppressCanvasClick 屏蔽随后的 click 事件。
+   ================================================================ */
+
+/**
+ * Canvas 单击处理：单选 / Ctrl多选。拖拽刚结束时会因 suppressCanvasClick 直接返回。
+ */
 function handleCanvasClick(event) {
   if (suppressCanvasClick) {
-    suppressCanvasClick = false;
+    suppressCanvasClick = false; // 拖拽产生的 click，吞掉
     return;
   }
 
@@ -1881,30 +2089,35 @@ function handleCanvasClick(event) {
   }
 
   if (!isNormalUser()) {
-    return;
+    return; // 管理员不在 Canvas 上选座
   }
 
-  const { x: pointerX, y: pointerY } = getCanvasPoint(event);
+  const { x: pointerX, y: pointerY } = getCanvasPoint(event); // 屏幕坐标→画布逻辑坐标
 
   const hitSeat = renderedSeats.find((seat) => isPointInsideSeat(pointerX, pointerY, seat));
 
   if (!hitSeat || hitSeat.status !== "available") {
-    return;
+    return; // 没点中座位，或点的是不可选座位
   }
 
   const previousSelection = [...selectedSeatKeys];
   if (event.ctrlKey || event.metaKey) {
-    toggleSeatSelection(hitSeat.key);
+    toggleSeatSelection(hitSeat.key); // Ctrl：切换该座位的选中状态
   } else {
+    // 普通单击：点已选的→清空；点新的→只选这个
     selectedSeatKeys = selectedSeatKeys.includes(hitSeat.key) ? [] : [hitSeat.key];
   }
 
   renderCurrentHall();
   if (hasSeatSelectionChanged(previousSelection, selectedSeatKeys)) {
-    announceSeatSelectionChange();
+    announceSeatSelectionChange(); // 无障碍语音播报选座变化
   }
 }
 
+/**
+ * 鼠标按下：开始一次可能的拖拽。先记下起点，dragging 标记还是 false
+   （要移动超过 8px 才算真拖拽，避免抖动误触）。additive 记录是否按了 Ctrl。
+ */
 function handleCanvasPointerDown(event) {
   if (!isNormalUser()) {
     return;
@@ -1914,7 +2127,7 @@ function handleCanvasPointerDown(event) {
   dragSelection = {
     active: true,
     dragging: false,
-    additive: event.ctrlKey || event.metaKey,
+    additive: event.ctrlKey || event.metaKey, // Ctrl 拖拽 = 在已有选区上追加
     startX: point.x,
     startY: point.y,
     currentX: point.x,
@@ -1922,6 +2135,10 @@ function handleCanvasPointerDown(event) {
   };
 }
 
+/**
+ * 鼠标移动：更新当前点，判断是否超过 8px 阈值成为真拖拽。
+   真拖拽时重绘 Canvas（drawDragSelectionOverlay 会画选框）。
+ */
 function handleCanvasPointerMove(event) {
   if (!dragSelection.active) {
     return;
@@ -1933,13 +2150,17 @@ function handleCanvasPointerMove(event) {
 
   const width = Math.abs(dragSelection.currentX - dragSelection.startX);
   const height = Math.abs(dragSelection.currentY - dragSelection.startY);
-  dragSelection.dragging = width > 8 || height > 8;
+  dragSelection.dragging = width > 8 || height > 8; // 阈值，防抖动
 
   if (dragSelection.dragging) {
     renderCurrentHall();
   }
 }
 
+/**
+ * 鼠标松开：若是真拖拽，应用选区并屏蔽随后的 click 事件。
+   重置 dragSelection 并重绘。
+ */
 function handleCanvasPointerUp() {
   if (!dragSelection.active) {
     return;
@@ -1948,7 +2169,7 @@ function handleCanvasPointerUp() {
   let selectionChanged = false;
   if (dragSelection.dragging) {
     selectionChanged = applyDragSelection();
-    suppressCanvasClick = true;
+    suppressCanvasClick = true; // 阻止 mouseup 后的 click 又选一次座位
   }
 
   dragSelection = createEmptyDragSelection();
@@ -1958,13 +2179,16 @@ function handleCanvasPointerUp() {
   }
 }
 
+/**
+ * 鼠标移出 Canvas：若正在拖拽则结算选区；若只是按下没拖则取消。
+ */
 function handleCanvasPointerLeave() {
   if (!dragSelection.active) {
     return;
   }
 
   if (!dragSelection.dragging) {
-    dragSelection = createEmptyDragSelection();
+    dragSelection = createEmptyDragSelection(); // 没拖起来，直接取消
     return;
   }
 
@@ -3379,16 +3603,27 @@ function createInitialState() {
   };
 }
 
+/**
+ * 生成某个影厅的全部座位数据（弧形布局的"数据源"，绘制时再按行列算坐标）。
+ * @param {number} rows        - 排数（三个厅都是 10 排）
+ * @param {number} seatsPerRow - 每排座位数（小厅10/中厅20/大厅30）
+ * @param {string} hallId      - 影厅 id，用来取该厅的"初始已售"图案
+ * @returns {Array<{row:number,number:number,status:string}>} 座位数组，按"行优先"排列
+ *
+ * 座位状态取值：available 空座 / sold 已售 / reserved 已预订 / disabled 维修
+ * 这里只初始化 available 与 sold 两种（sold 来自 soldPatternByHall 的预设图案）。
+ */
 function buildSeats(rows, seatsPerRow, hallId) {
-  const soldPattern = soldPatternByHall(hallId);
+  const soldPattern = soldPatternByHall(hallId); // 预设的"已售座位"集合，让画面一开始就不空
   const seats = [];
 
   for (let row = 1; row <= rows; row += 1) {
     for (let number = 1; number <= seatsPerRow; number += 1) {
-      const key = `${row}-${number}`;
+      const key = `${row}-${number}`; // 座位唯一标识："排号-座号"，全项目用它定位座位
       seats.push({
         row,
         number,
+        // 命中预设图案的记为已售，其余为空座
         status: soldPattern.has(key) ? "sold" : "available"
       });
     }
@@ -3397,6 +3632,11 @@ function buildSeats(rows, seatsPerRow, hallId) {
   return seats;
 }
 
+/**
+ * 各影厅"初始已售座位"的预设图案（纯演示用，让热度图一开始就有热源可看）。
+ * 返回一个 Set，成员形如 "3-5"（第3排第5座）。
+ * 真实订单产生后，热度会以订单/座位状态为准重新计算，这里只负责初始画面。
+ */
 function soldPatternByHall(hallId) {
   const patterns = {
     small: ["3-4", "3-5", "4-5", "4-6", "6-3", "7-8", "8-2", "9-9"],

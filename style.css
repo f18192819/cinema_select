@@ -2607,9 +2607,14 @@ body.mode-large-text .order-list {
   grid-template-columns: 1fr;
 }
 /* ================================================================
-   Seat-map clarity pass: separate seat fill from outer indicators.
+   座位图样式区（2609-3335）
+   ----------------------------------------------------------------
+   分四块：① 座位/热度配色变量（含无障碍模式覆盖）② 图例样式
+   ③ Canvas 容器与缩略导航 ④ 座位图工作区布局 + 响应式
+   Canvas 内部颜色由 JS getSeatPalette() 读这些 CSS 变量绘制。
    ================================================================ */
 
+/* ① 座位/热度配色变量：默认主题。JS 用 getComputedStyle 读取后画到 Canvas */
 :root {
   --seat-available: #8ee3a8;
   --seat-selected: #ffe08a;
@@ -2622,6 +2627,7 @@ body.mode-large-text .order-list {
   --seat-manual-glow: rgba(255, 255, 255, 0.22);
 }
 
+/* 高对比度模式：覆盖座位配色，Canvas 重绘时自动跟上 */
 body.mode-high-contrast {
   --seat-available: #85f3aa;
   --seat-selected: #ffe681;
@@ -2632,6 +2638,7 @@ body.mode-high-contrast {
   --seat-manual-ring: #ffffff;
 }
 
+/* 色盲友好模式：用蓝/橙/灰替代红/绿，保证可区分 */
 body.mode-colorblind {
   --seat-available: #8ec5ff;
   --seat-selected: #ffc768;
@@ -2642,6 +2649,8 @@ body.mode-colorblind {
   --seat-manual-ring: #ffffff;
 }
 
+/* ② 图例样式：座位状态图例(.legend) + 热度图例(.heat-legend)
+   .legend__dot 是填充色方块（带状态符号✓×•—），.legend__ring 是外圈标记 */
 .legend {
   gap: 8px 10px;
   padding: 12px;
@@ -2652,7 +2661,7 @@ body.mode-colorblind {
 
 .legend__title,
 .heat-legend__title {
-  flex: 1 0 100%;
+  flex: 1 0 100%; /* 标题独占一行 */
   color: #dce6f3;
   font-size: 0.68rem;
   font-weight: 700;
@@ -2662,7 +2671,7 @@ body.mode-colorblind {
 .legend__title--ring {
   margin-top: 4px;
   padding-top: 10px;
-  border-top: 1px solid rgba(151, 177, 219, 0.1);
+  border-top: 1px solid rgba(151, 177, 219, 0.1); /* 分隔"填充"与"外圈"两组 */
 }
 
 .legend span {
@@ -2671,6 +2680,7 @@ body.mode-colorblind {
   border: 1px solid rgba(151, 177, 219, 0.08);
 }
 
+/* 图例小方块：模拟 Canvas 里座位的圆角方块外观 */
 .legend__dot {
   width: 14px;
   height: 14px;
@@ -2678,6 +2688,7 @@ body.mode-colorblind {
   box-shadow: inset 0 0 0 1px rgba(2, 6, 14, 0.2), 0 0 7px currentColor;
 }
 
+/* 图例外圈标记：粗边框、无填充，对应 Canvas 的推荐/手动外圈 */
 .legend__ring {
   width: 15px;
   height: 15px;
@@ -2700,6 +2711,7 @@ body.mode-colorblind {
   border: 1px solid rgba(151, 177, 219, 0.08);
 }
 
+/* 热度图例小圈：空心、只描边，对应 Canvas 的热度外圈 */
 .heat-legend__dot {
   width: 14px;
   height: 14px;
@@ -2712,6 +2724,7 @@ body.mode-colorblind {
   color: #b7c3d2;
 }
 
+/* ③ Canvas 容器与缩略导航 */
 .canvas-panel {
   position: relative;
   top: auto;
@@ -2722,6 +2735,7 @@ body.mode-colorblind {
   place-items: center;
 }
 
+/* 主 Canvas 尺寸：高度随视口自适应，上限 760px（与 JS 逻辑高度一致） */
 #seatCanvas {
   width: auto !important;
   height: clamp(500px, calc(100vh - 250px), 760px) !important;
@@ -2731,6 +2745,7 @@ body.mode-colorblind {
   object-fit: contain;
 }
 
+/* 宽屏下热度面板内部用两列网格排版 */
 @media (min-width: 721px) {
   .canvas-panel .heat-panel {
     display: grid;
@@ -2773,7 +2788,7 @@ body.mode-colorblind {
     max-height: none;
   }
 }
-/* Reference-inspired seat symbols and full-hall overview. */
+/* 图例小方块的符号标记：用 ::after 在方块里画 ✓/×/•/— 表示状态 */
 .legend__dot,
 .legend__ring {
   position: relative;
@@ -2811,6 +2826,7 @@ body.mode-colorblind {
   color: #f0f4f8;
 }
 
+/* 左上角全厅缩略导航浮层：放大模式下显示 */
 .seat-overview {
   position: absolute;
   z-index: 4;
@@ -2824,7 +2840,7 @@ body.mode-colorblind {
   background: rgba(5, 10, 18, 0.9);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.36), inset 0 1px rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(12px);
-  pointer-events: none;
+  pointer-events: none; /* 默认不拦截，下方再单独放开 map/viewport */
 }
 
 .seat-overview__head {
@@ -2846,6 +2862,7 @@ body.mode-colorblind {
   font-size: 9px;
 }
 
+/* 缩略图底图：点阵背景模拟"全厅座位"的视觉 */
 .seat-overview__map {
   position: relative;
   height: 48px;
@@ -2858,6 +2875,7 @@ body.mode-colorblind {
   background-size: 9px 8px;
 }
 
+/* 中间一条暗色竖条：模拟银幕方位 */
 .seat-overview__map::before {
   content: "";
   position: absolute;
@@ -2869,6 +2887,7 @@ body.mode-colorblind {
   transform: translateX(-50%);
 }
 
+/* 亮框：代表当前放大区域，JS 用 left/top/width/height% 定位 */
 .seat-overview__viewport {
   position: absolute;
   inset: 5px 7px;
@@ -2878,6 +2897,7 @@ body.mode-colorblind {
   box-shadow: 0 0 10px rgba(57, 222, 248, 0.32), inset 0 0 10px rgba(57, 222, 248, 0.08);
 }
 
+/* 亮框右下角小拖把，提示可拖 */
 .seat-overview__viewport::after {
   content: "";
   position: absolute;
@@ -2928,8 +2948,7 @@ body.mode-high-contrast .seat-overview__viewport {
     display: none;
   }
 }
-/* Interactive hall navigator and assignment-compliant green seats. */
-
+/* 全局/局部放大切换按钮 + 缩略图交互样式 */
 .seat-view-tools {
   display: flex;
   flex-direction: column;
@@ -2956,12 +2975,14 @@ body.mode-high-contrast .seat-overview__viewport {
   transform: translateY(-1px);
 }
 
+/* 放大态按钮高亮 */
 .seat-view-mode.is-zoomed {
   color: #061018;
   background: #83eaff;
   border-color: #83eaff;
 }
 
+/* 放大时缩略图允许交互 */
 .seat-overview {
   pointer-events: auto;
   user-select: none;
@@ -2969,7 +2990,7 @@ body.mode-high-contrast .seat-overview__viewport {
 
 .seat-overview__map {
   cursor: crosshair;
-  touch-action: none;
+  touch-action: none; /* 阻止触摸滚动，交给 pointer 事件处理拖动 */
   background: #101722;
 }
 
@@ -2981,6 +3002,7 @@ body.mode-high-contrast .seat-overview__viewport {
   height: 100%;
 }
 
+/* 亮框做成可拖按钮 */
 .seat-overview__viewport {
   min-width: 0;
   min-height: 0;
@@ -3001,6 +3023,7 @@ body.mode-high-contrast .seat-overview__viewport {
   outline-offset: 2px;
 }
 
+/* 放大态给 Canvas 边框加一点光晕 */
 .canvas-frame.is-zoomed {
   border-color: rgba(57, 222, 248, 0.28);
   box-shadow: inset 0 0 0 1px rgba(57, 222, 248, 0.06), inset 0 18px 60px rgba(33, 212, 253, 0.04);
@@ -3016,19 +3039,16 @@ body.mode-high-contrast .seat-overview__viewport {
     width: 100%;
   }
 }
-/* ================================================================
-   Compact seat-map workspace: canvas-first layout with side legends.
-   ================================================================ */
-
+/* ④ 座位图工作区布局：左 Canvas + 右侧栏(图例/热度)，含响应式与无障碍覆盖 */
 .seat-map-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 206px;
+  grid-template-columns: minmax(0, 1fr) 206px; /* 主区 + 206px 侧栏 */
   gap: 14px;
   align-items: start;
 }
 
 .seat-map-main {
-  min-width: 0;
+  min-width: 0; /* 让 grid 子项可收缩，防止 Canvas 撑爆 */
 }
 
 .seat-map-sidebar {
@@ -3038,6 +3058,7 @@ body.mode-high-contrast .seat-overview__viewport {
   min-width: 0;
 }
 
+/* 侧栏卡片统一样式 */
 .seat-guide-card,
 .seat-map-sidebar .heat-panel {
   margin: 0;
@@ -3059,6 +3080,7 @@ body.mode-high-contrast .seat-overview__viewport {
   line-height: 1.2;
 }
 
+/* 侧栏内图例改成单列纵向排列 */
 .seat-map-sidebar .legend,
 .seat-map-sidebar .heat-legend {
   display: grid;
@@ -3090,6 +3112,7 @@ body.mode-high-contrast .seat-overview__viewport {
   font-size: 0.7rem;
 }
 
+/* 侧栏热度面板强制单列块状布局（覆盖宽屏两列） */
 .seat-map-sidebar .heat-panel {
   display: block !important;
 }
@@ -3135,6 +3158,7 @@ body.mode-high-contrast .seat-overview__viewport {
   font-size: 0.68rem;
 }
 
+/* 选座读数条 */
 .selection-readout--map {
   margin: 10px 0 0;
   min-height: 48px;
@@ -3144,10 +3168,12 @@ body.mode-high-contrast .seat-overview__viewport {
   color: #e3edf8;
 }
 
+/* 工作区里 Canvas 高度收紧一点 */
 #seatCanvas {
   height: clamp(460px, calc(100vh - 210px), 680px) !important;
 }
 
+/* 超宽屏(≥1181px)：工作区两列，控制面板左、座位图右跨两行 */
 @media (min-width: 1181px) {
   .hero--app {
     margin-bottom: 12px;
@@ -3254,6 +3280,7 @@ body.mode-high-contrast .seat-overview__viewport {
   }
 }
 
+/* ≤980px：座位图与侧栏上下排，侧栏变两列 */
 @media (max-width: 980px) {
   .seat-map-layout {
     grid-template-columns: 1fr;
@@ -3280,6 +3307,7 @@ body.mode-high-contrast .seat-overview__viewport {
   }
 }
 
+/* ≤620px：侧栏单列 */
 @media (max-width: 620px) {
   .seat-map-sidebar {
     grid-template-columns: 1fr;
@@ -3289,6 +3317,8 @@ body.mode-high-contrast .seat-overview__viewport {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* 选中的正好是推荐座位时，读数条高亮成青色 */
 .selection-readout--map.is-recommended-selection {
   border-color: rgba(0, 229, 255, 0.48);
   color: #effdff;
@@ -3309,6 +3339,7 @@ body.mode-high-contrast .seat-overview__viewport {
   margin-bottom: 12px;
 }
 
+/* 大字体模式：座位图改单列，侧栏两列，避免拥挤 */
 body.mode-large-text .seat-map-layout {
   grid-template-columns: 1fr;
 }
@@ -3322,6 +3353,7 @@ body.mode-large-text .seat-map-sidebar .legend {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+/* 高对比度模式：图例卡片改黑底白字 */
 body.mode-high-contrast .seat-guide-card {
   border-color: #ffffff;
   color: #ffffff;
@@ -4056,24 +4088,29 @@ select:focus-visible {
   background: linear-gradient(135deg, #ff4057, #f01225);
   box-shadow: 0 14px 34px rgba(229, 9, 20, 0.3);
 }
-/* Higher-contrast available-seat green on the default theme. */
+/* 提高空座绿色的对比度（默认主题），让绿色更醒目。
+   注意：这里覆盖了前面 2613 行定义的 --seat-available，JS 重绘 Canvas 会读到新值。 */
 :root {
   --seat-available: #20e97c;
 }
 
+/* 图例里"空座"小方块的边框和发光，与新绿色配套 */
 .legend__dot--available {
   border-color: rgba(221, 255, 234, 0.9);
   box-shadow: inset 0 0 0 1px rgba(0, 45, 23, 0.35), 0 0 12px rgba(32, 233, 124, 0.36);
 }
 /* ================================================================
-   Warm cinema accent and compact legends.
-   Required seat/heat status colors remain semantically unchanged.
+   暖色调影院主题覆盖（4068-4077）
+   ----------------------------------------------------------------
+   把强调色和空座色换成偏暖的米金/草绿，拖拽选框也改成暖色。
+   座位/热度的语义颜色保持不变（红=已售、绿=空座等含义没变）。
+   这一段在文件靠后，优先级更高，会覆盖前面的同名变量。
    ================================================================ */
 :root {
   --accent: #d2b477;
   --seat-available: #73c990;
-  --selection-fill: rgba(210, 180, 119, 0.12);
-  --selection-stroke: rgba(226, 199, 143, 0.92);
+  --selection-fill: rgba(210, 180, 119, 0.12);   /* 拖拽选框填充 */
+  --selection-stroke: rgba(226, 199, 143, 0.92); /* 拖拽选框描边 */
 }
 
 body {
@@ -5044,5 +5081,54 @@ body.mode-large-text #accessibilityMenuBtn {
 @media (max-width: 720px) {
   .checkout-panel--inline .order-actions {
     grid-template-columns: 1fr;
+  }
+}
+
+/* 多标签页实时同步状态：不改变原有操作区，只提供可见的演示反馈。 */
+.panel-heading__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+}
+
+.realtime-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid rgba(115, 201, 144, 0.35);
+  border-radius: 999px;
+  color: #bfe8c9;
+  background: rgba(115, 201, 144, 0.08);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.realtime-status::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #73c990;
+  box-shadow: 0 0 10px rgba(115, 201, 144, 0.9);
+  content: "";
+}
+
+.realtime-status.is-updated {
+  border-color: rgba(210, 180, 119, 0.52);
+  color: #f1d8a7;
+  background: rgba(210, 180, 119, 0.12);
+}
+
+.realtime-status.is-updated::before {
+  background: #d2b477;
+  box-shadow: 0 0 10px rgba(210, 180, 119, 0.9);
+}
+
+@media (max-width: 720px) {
+  .seat-view-tools,
+  .panel-heading__meta {
+    align-items: flex-start;
   }
 }

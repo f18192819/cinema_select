@@ -5369,6 +5369,7 @@ body.mode-large-text #accessibilityMenuBtn {
   .mobile-order-summary span, .mobile-order-summary strong { display:block; }
   .mobile-order-summary span { color: var(--text-soft); font-size: 0.72rem; }
   .mobile-order-summary strong { margin-top: 4px; color: #f4e7c6; font-size: 0.84rem; }
+  .mobile-checkout-back { width: 100%; min-height: 42px; margin: -4px 0 12px; border: 1px solid rgba(210,180,119,0.3); border-radius: 10px; color: #ead5a7; background: rgba(255,255,255,0.03); font: 700 0.82rem/1.2 var(--font-sans); }
 
   .accessibility-popover {
     width: calc(100vw - 20px);
@@ -10215,6 +10216,12 @@ function escapeHtml(value) {
   orderSummary.className = "mobile-order-summary mobile-flow-ui";
   document.querySelector(".checkout-panel .order-panel")?.prepend(orderSummary);
 
+  const checkoutBackButton = document.createElement("button");
+  checkoutBackButton.className = "mobile-checkout-back mobile-flow-ui";
+  checkoutBackButton.type = "button";
+  checkoutBackButton.textContent = "返回选座界面";
+  orderSummary.after(checkoutBackButton);
+
   document.querySelectorAll(".seat-map-sidebar > section").forEach((section, index) => {
     const details = document.createElement("details");
     details.open = false;
@@ -10350,6 +10357,7 @@ function escapeHtml(value) {
     handleOpenOrderPage();
   });
   document.getElementById("backToSeatsBtn").addEventListener("click", () => setStep("seats"));
+  checkoutBackButton.addEventListener("click", () => setStep("seats"));
   seatBar.querySelector("button").addEventListener("click", () => {
     if (!selectedSeatKeys.length) {
       return;

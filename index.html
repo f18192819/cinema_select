@@ -1677,8 +1677,8 @@ button:disabled {
 .auth-panel {
   width: 100%;
   max-width: 500px;
-  order: -1;
-  justify-self: start;
+  order: 2;
+  justify-self: end;
   padding: clamp(24px, 3vw, 36px);
   border-color: rgba(111, 231, 255, 0.17);
 }
@@ -5255,6 +5255,116 @@ body.mode-large-text #accessibilityMenuBtn {
   }
 }
 
+/* Mobile-only task flow. Desktop keeps the original layout unchanged. */
+@media (max-width: 720px) {
+  #appScreen[data-mobile-flow="mode"] #userAppHeader,
+  #appScreen[data-mobile-flow="mode"] #userWorkspace,
+  #appScreen[data-mobile-flow="mode"] #orderScreen,
+  #appScreen[data-mobile-flow="recommend"] #userAppHeader,
+  #appScreen[data-mobile-flow="recommend"] .canvas-panel,
+  #appScreen[data-mobile-flow="recommend"] .insights-grid,
+  #appScreen[data-mobile-flow="seats"] #userAppHeader,
+  #appScreen[data-mobile-flow="seats"] .control-panel,
+  #appScreen[data-mobile-flow="seats"] .checkout-panel,
+  #appScreen[data-mobile-flow="seats"] .insights-grid,
+  #appScreen[data-mobile-flow="checkout"] #userAppHeader,
+  #appScreen[data-mobile-flow="checkout"] .control-panel,
+  #appScreen[data-mobile-flow="checkout"] .seat-map-layout,
+  #appScreen[data-mobile-flow="checkout"] .canvas-panel > .panel-heading,
+  #appScreen[data-mobile-flow="checkout"] .insights-grid {
+    display: none !important;
+  }
+
+  .mobile-flow-ui {
+    display: block;
+  }
+
+  .mobile-flow-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 54px;
+    margin-bottom: 12px;
+    padding: 0 14px;
+    border: 1px solid rgba(210, 180, 119, 0.25);
+    border-radius: 14px;
+    background: rgba(14, 14, 13, 0.95);
+  }
+
+  .mobile-flow-nav strong { color: #ead5a7; letter-spacing: 0.08em; }
+  .mobile-flow-nav button { border: 0; color: var(--text-soft); background: transparent; font: inherit; }
+
+  .mobile-mode-card {
+    display: grid;
+    gap: 14px;
+    padding: 26px 20px;
+    border: 1px solid rgba(210, 180, 119, 0.22);
+    border-radius: 18px;
+    background: linear-gradient(145deg, rgba(210, 180, 119, 0.14), rgba(12, 12, 12, 0.94) 55%);
+  }
+
+  .mobile-mode-card h2, .mobile-mode-card p { margin: 0; }
+  .mobile-mode-card p { color: var(--text-soft); line-height: 1.6; }
+  .mobile-mode-actions { display: grid; gap: 10px; }
+  .mobile-mode-actions button {
+    min-height: 82px;
+    padding: 15px;
+    border: 1px solid rgba(210, 180, 119, 0.28);
+    border-radius: 12px;
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.035);
+    text-align: left;
+    font: inherit;
+  }
+  .mobile-mode-actions button:first-child { background: rgba(210, 180, 119, 0.15); }
+  .mobile-mode-actions strong, .mobile-mode-actions span { display: block; }
+  .mobile-mode-actions strong { color: #f0d49c; margin-bottom: 5px; }
+  .mobile-mode-actions span { color: var(--text-soft); font-size: 0.82rem; }
+
+  .mobile-flow-steps { display: flex; gap: 10px; margin: 0 3px 13px; color: #9aa0a8; font-size: 0.76rem; }
+  .mobile-flow-steps span.is-current, .mobile-flow-steps span.is-done { color: #ead5a7; }
+
+  .mobile-hall-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+  .mobile-hall-tabs button { min-height: 48px; border: 1px solid var(--line-soft); border-radius: 10px; color: var(--text-soft); background: rgba(255,255,255,0.03); font: inherit; }
+  .mobile-hall-tabs button.is-active { color: #10100e; border-color: #d2b477; background: #d2b477; }
+
+  .seat-map-sidebar details { margin-bottom: 9px; border: 1px solid rgba(210,180,119,0.18); border-radius: 11px; background: rgba(255,255,255,0.025); }
+  .seat-map-sidebar details summary { padding: 12px 14px; color: #ead5a7; cursor: pointer; font-weight: 700; }
+  .seat-map-sidebar details > section { margin: 0; border: 0; border-top: 1px solid rgba(210,180,119,0.12); border-radius: 0; }
+
+  .mobile-seat-bar {
+    position: fixed;
+    z-index: 40;
+    right: 10px;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: 10px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(210,180,119,0.35);
+    border-radius: 14px;
+    background: rgba(14,14,13,0.96);
+    box-shadow: 0 18px 42px rgba(0,0,0,0.45);
+  }
+  .mobile-seat-bar strong, .mobile-seat-bar span { display: block; }
+  .mobile-seat-bar strong { color: #fffaf0; }
+  .mobile-seat-bar span { color: #d2b477; font-size: 0.78rem; margin-top: 3px; }
+  .mobile-seat-bar button { min-height: 44px; padding: 0 16px; border: 0; border-radius: 10px; color: #17130d; background: #d2b477; font: inherit; font-weight: 800; }
+
+  .mobile-order-summary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 0 0 15px; }
+  .mobile-order-summary div { padding: 10px; border: 1px solid rgba(210,180,119,0.15); border-radius: 10px; background: rgba(255,255,255,0.025); }
+  .mobile-order-summary span, .mobile-order-summary strong { display:block; }
+  .mobile-order-summary span { color: var(--text-soft); font-size: 0.72rem; }
+  .mobile-order-summary strong { margin-top: 4px; color: #f4e7c6; font-size: 0.84rem; }
+}
+
+@media (min-width: 721px) {
+  .mobile-flow-ui { display: none !important; }
+  .seat-map-sidebar details { display: contents; }
+  .seat-map-sidebar details summary { display: none; }
+}
 </style>
 </head>
 <body>
@@ -5341,6 +5451,25 @@ body.mode-large-text #accessibilityMenuBtn {
     </section>
 
     <section class="app-screen" id="appScreen" hidden>
+      <div class="mobile-flow-ui" id="mobileFlowUi">
+        <nav class="mobile-flow-nav" aria-label="移动端导航">
+          <strong>SmartCinema</strong>
+          <span>
+            <button type="button" id="mobileOrdersBtn">订单</button>
+            <button type="button" id="mobileRestartBtn">重新选座</button>
+          </span>
+        </nav>
+        <section class="mobile-mode-card" id="mobileModeCard">
+          <p class="panel-heading__tag">MOBILE SEAT FLOW</p>
+          <h2>今天，怎么选座？</h2>
+          <p>智能推荐会根据票型和同行信息推荐座位；手动选座可直接进入座位图自由选择。</p>
+          <div class="mobile-mode-actions">
+            <button type="button" id="mobileRecommendBtn"><strong>智能推荐选座</strong><span>填写票型、年龄和成员信息，由系统推荐合适座位。</span></button>
+            <button type="button" id="mobileManualBtn"><strong>手动自由选座</strong><span>不填写观众信息，直接进入座位图选择。</span></button>
+          </div>
+        </section>
+        <div class="mobile-flow-steps" id="mobileFlowSteps" aria-label="选座步骤"><span>1 方式</span><span>2 选座</span><span>3 确认</span></div>
+      </div>
       <header class="hero hero--app" id="userAppHeader">
         <div class="hero__copy">
           <p class="eyebrow">SMARTCINEMA · SEAT CONSOLE</p>
@@ -5878,6 +6007,13 @@ const TICKET_TYPE_CONFIG = {
     max: 20,
     countEditable: true,
     countLabel: "\u56e2\u4f53\u4eba\u6570"
+  },
+  manual: {
+    label: "\u624b\u52a8\u9009\u5ea7",
+    min: 1,
+    max: 20,
+    countEditable: true,
+    countLabel: "\u5df2\u9009\u4eba\u6570"
   }
 };
 
@@ -6414,7 +6550,16 @@ async function handleCreateOrder(statusCode) {
   }
 
   recommendationDraft = readRecommendationDraftFromDOM();
-  const validation = validateRecommendationDraft(recommendationDraft);
+  const validation = window.smartCinemaMobileFlow?.mode === "manual" && window.matchMedia("(max-width: 720px)").matches
+    ? {
+      valid: true,
+      draft: {
+        ticketType: "manual",
+        memberCount: selectedSeatKeys.length,
+        members: selectedSeatKeys.map((seatKey, index) => ({ name: `手动选座观众 ${index + 1}`, age: null, seatKey }))
+      }
+    }
+    : validateRecommendationDraft(recommendationDraft);
   if (!validation.valid) {
     setOrderStatus(validation.message, "error");
     return;
@@ -9862,6 +10007,125 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
+/* Mobile-only flow controller. It reuses the existing desktop seat, order, and recommendation logic. */
+(() => {
+  const app = document.getElementById("appScreen");
+  const flowUi = document.getElementById("mobileFlowUi");
+  const modeCard = document.getElementById("mobileModeCard");
+  const stepper = document.getElementById("mobileFlowSteps");
+  const mobileQuery = window.matchMedia("(max-width: 720px)");
+  const flow = window.smartCinemaMobileFlow = { step: "mode", mode: null };
+
+  const canvasPanel = document.querySelector(".canvas-panel");
+  const panelHeading = canvasPanel?.querySelector(":scope > .panel-heading");
+  const mobileHallTabs = document.createElement("div");
+  mobileHallTabs.className = "mobile-hall-tabs mobile-flow-ui";
+  mobileHallTabs.setAttribute("aria-label", "移动端影厅切换");
+  panelHeading?.after(mobileHallTabs);
+
+  const seatBar = document.createElement("aside");
+  seatBar.className = "mobile-seat-bar mobile-flow-ui";
+  seatBar.innerHTML = '<div><strong>尚未选择座位</strong><span>选择座位后继续</span></div><button type="button">确认座位</button>';
+  document.getElementById("userWorkspace")?.append(seatBar);
+
+  const orderSummary = document.createElement("div");
+  orderSummary.className = "mobile-order-summary mobile-flow-ui";
+  document.querySelector(".checkout-panel .order-panel")?.prepend(orderSummary);
+
+  document.querySelectorAll(".seat-map-sidebar > section").forEach((section, index) => {
+    const details = document.createElement("details");
+    details.open = true;
+    const summary = document.createElement("summary");
+    summary.textContent = index === 0 ? "座位说明" : "热度地图";
+    section.before(details);
+    details.append(summary, section);
+  });
+
+  function isMobile() {
+    return mobileQuery.matches;
+  }
+
+  function setStep(step, mode = flow.mode) {
+    flow.step = step;
+    flow.mode = mode;
+    render();
+    if (isMobile()) window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function renderHallTabs() {
+    mobileHallTabs.innerHTML = "";
+    hallsConfig.forEach((hall) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = hall.name;
+      button.classList.toggle("is-active", hall.id === selectedHallId);
+      button.addEventListener("click", () => {
+        [...document.querySelectorAll("#hallTabs .hall-tab")]
+          .find((tab) => tab.textContent.includes(hall.name))?.click();
+      });
+      mobileHallTabs.append(button);
+    });
+  }
+
+  function render() {
+    const seatCount = selectedSeatKeys.length;
+    const hall = state.halls[selectedHallId];
+    const ticketLabel = flow.mode === "manual"
+      ? "手动自由选座"
+      : TICKET_TYPE_CONFIG[recommendationDraft.ticketType]?.label || "智能推荐";
+    const seatText = selectedSeatKeys.map(formatSeatLabel).join("、") || "未选择";
+
+    app.dataset.mobileFlow = isMobile() ? flow.step : "desktop";
+    flowUi.hidden = !isMobile();
+    modeCard.hidden = !isMobile() || flow.step !== "mode";
+    stepper.hidden = !isMobile() || flow.step === "mode";
+    [...stepper.querySelectorAll("span")].forEach((item, index) => {
+      const current = flow.step === "recommend" ? 1 : flow.step === "seats" ? 2 : flow.step === "checkout" ? 3 : 0;
+      item.classList.toggle("is-current", index + 1 === current);
+      item.classList.toggle("is-done", index + 1 < current);
+    });
+    seatBar.hidden = !isMobile() || flow.step !== "seats";
+    seatBar.querySelector("strong").textContent = seatCount ? `已选 ${seatCount} 座` : "尚未选择座位";
+    seatBar.querySelector("span").textContent = seatCount ? `预计 ¥${seatCount * 46}` : "选择座位后继续";
+    seatBar.querySelector("button").disabled = seatCount === 0;
+    orderSummary.innerHTML = [["影厅", hall?.name || "-"], ["座位", seatText], ["票型", ticketLabel], ["人数", `${seatCount} 人`], ["金额", seatCount ? `¥${seatCount * 46}` : "-"]]
+      .map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
+    renderHallTabs();
+  }
+
+  const originalShowUserAppView = showUserAppView;
+  showUserAppView = function () {
+    originalShowUserAppView();
+    flow.step = "mode";
+    flow.mode = null;
+    render();
+  };
+
+  const originalRenderCurrentHall = renderCurrentHall;
+  renderCurrentHall = function () {
+    originalRenderCurrentHall();
+    render();
+  };
+
+  document.getElementById("mobileRecommendBtn").addEventListener("click", () => setStep("recommend", "recommend"));
+  document.getElementById("mobileManualBtn").addEventListener("click", () => setStep("seats", "manual"));
+  document.getElementById("mobileRestartBtn").addEventListener("click", () => setStep("mode", null));
+  document.getElementById("mobileOrdersBtn").addEventListener("click", () => {
+    flowUi.hidden = true;
+    handleOpenOrderPage();
+  });
+  document.getElementById("backToSeatsBtn").addEventListener("click", () => setStep("seats"));
+  seatBar.querySelector("button").addEventListener("click", () => {
+    if (selectedSeatKeys.length) setStep("checkout");
+  });
+  document.getElementById("recommendBtn").addEventListener("click", () => {
+    window.setTimeout(() => {
+      if (isMobile() && recommendedSeatKeys.length) setStep("seats", "recommend");
+    }, 0);
+  });
+  mobileQuery.addEventListener("change", render);
+  render();
+})();
 </script>
 </body>
 </html>

@@ -60,7 +60,7 @@ big_homework/
 
 ### 5. 推荐与评分分别解决“怎么选”和“选得怎么样”
 
-推荐模块先校验票型、人数与年龄约束，再搜索连续空座；评分模块从距离、水平视角、周围空位和规则匹配四个维度汇总为系统评分，并可结合 1-5 星人工评分。
+推荐模块先校验票型、人数与年龄约束，再搜索连续空座；选座页评分模块从距离、水平视角、周围空位和规则匹配四个维度给出座位参考分，已购票订单再结合用户的 1–5 星评分生成综合评分。
 
 ### 6. 热度基于真实座位状态缓慢扩散
 
@@ -102,7 +102,7 @@ big_homework/
      列出了你负责部分的核心函数名，可在 app.js 里直接搜索跳转。 -->
 | 模块 2：手动选座 | `handleCanvasClick()`、`handleCanvasPointerDown()`、`handleCanvasPointerMove()`、`handleCanvasPointerUp()` | 桌面端支持单选、`Ctrl` 多选与拖拽框选；手机端连续点击可多选，再次点击可取消，推荐后仍可手动修改。 |
 | 模块 3：影院热度地图 | `getHeatSourceSeats()`、`getHeatInfluenceByDistance()`、`calculateSeatHeat()`、`getHeatBorderColor()`、`renderHeatPanel()`；Canvas 的 `drawSeats()` | 热度由预订/购票/已售座位按距离分段扩散并累加，只绘制外圈边框。当前版本不包含作业说明中的“一周播放动画”。 |
-| 模块 4：观影体验评分 | `updateExperienceScore()`、`calculateSystemExperienceScore()`、`handleUserRating()`、`renderExperienceScoreState()` | 根据距离、居中程度、周边空位和规则匹配给出分数与等级，并显示用户评分后的综合结果。 |
+| 模块 4：观影体验评分 | `updateExperienceScore()`、`calculateSystemExperienceScore()`、`getOrderScoreSummary()`、`calculateCompositeScore()`、`renderExperienceScoreState()` | 选座页仅显示座位参考分、等级和理由；已购票订单由用户评分后显示订单专属综合结果。 |
 | 模块 5：无障碍模式 | `handleAccessibilityToggle()`、`resetAccessibilitySettings()`、`applyAccessibilitySettings()`、`renderAccessibilityState()`、`speakMessage()`；`style.css` 的 `mode-large-text`、`mode-high-contrast`、`mode-colorblind` | 支持大字体、高对比度、色盲友好和 SpeechSynthesis 语音提示；退出登录时恢复默认配置。 |
 | 模块 6：订单中心 | `handleCreateOrder()`、`validateOrderSelection()`、`handleOrderListAction()`、`updateOrderStatus()`、`renderOrderCenter()` | 支持预订、取消预订、购票、退票和已购票订单 1–5 星评分；订单状态会同步更新座位。 |
 | 加分项：多人实时座位更新 | `server.js`、`initializeWebSocketSync()`、`submitStateToServer()`、`runSeatStateTransaction()`、`sessionStorage` 会话函数 | WebSocket 服务端保存权威状态并按版本拒绝过期提交，支持不同浏览器或设备的实时同步；服务未启动时自动降级为本地多标签页同步。 |

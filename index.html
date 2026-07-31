@@ -676,6 +676,10 @@ body.mode-high-contrast .admin-status {
   gap: 12px;
 }
 
+.score-panel .score-grid {
+  grid-template-columns: 1fr;
+}
+
 .score-card {
   padding: 16px;
   border-radius: var(--radius-md);
@@ -977,6 +981,13 @@ body.mode-high-contrast .admin-status {
   margin: 10px 0 0;
   color: #ead5a7;
   font-size: 13px;
+}
+
+.order-card__composite {
+  margin: 7px 0 0;
+  color: #c8f1d5;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .order-rating-panel {
@@ -5913,9 +5924,9 @@ body.mode-large-text #accessibilityMenuBtn {
             <div class="score-panel__head">
               <div>
                 <p class="panel-heading__tag">EXPERIENCE SCORE</p>
-                <h3>观影体验评分</h3>
+                <h3>座位参考评分</h3>
               </div>
-              <span class="panel-heading__hint">座位参考与真实感受一起看</span>
+              <span class="panel-heading__hint">根据座位位置和周边环境提供参考</span>
             </div>
 
             <div class="score-grid">
@@ -5924,23 +5935,6 @@ body.mode-large-text #accessibilityMenuBtn {
                 <strong class="score-card__value" id="systemScoreValue">-- / 100</strong>
                 <span class="score-card__grade" id="systemScoreGrade">待评估</span>
               </article>
-              <article class="score-card">
-                <span class="score-card__label">综合结果</span>
-                <strong class="score-card__value" id="compositeScoreValue">-- / 100</strong>
-                <span class="score-card__grade" id="compositeScoreGrade">待评估</span>
-              </article>
-            </div>
-
-            <div class="user-rating-block">
-              <span class="score-card__label">观众手动评分</span>
-              <div class="rating-stars" id="ratingStars">
-                <button class="rating-star" data-rating="1" type="button" aria-label="1 星">★</button>
-                <button class="rating-star" data-rating="2" type="button" aria-label="2 星">★</button>
-                <button class="rating-star" data-rating="3" type="button" aria-label="3 星">★</button>
-                <button class="rating-star" data-rating="4" type="button" aria-label="4 星">★</button>
-                <button class="rating-star" data-rating="5" type="button" aria-label="5 星">★</button>
-              </div>
-              <p class="user-rating-text" id="userRatingText">还没有你的评分，先为你展示座位参考分。</p>
             </div>
 
             <div class="score-status" id="scoreStatus">
@@ -6203,10 +6197,6 @@ const dom = {
   recommendReasonList: document.getElementById("recommendReasonList"),
   systemScoreValue: document.getElementById("systemScoreValue"),
   systemScoreGrade: document.getElementById("systemScoreGrade"),
-  compositeScoreValue: document.getElementById("compositeScoreValue"),
-  compositeScoreGrade: document.getElementById("compositeScoreGrade"),
-  ratingStars: [...document.querySelectorAll(".rating-star")],
-  userRatingText: document.getElementById("userRatingText"),
   scoreStatus: document.getElementById("scoreStatus"),
   experienceReasonList: document.getElementById("experienceReasonList"),
   largeTextToggle: document.getElementById("largeTextToggle"),
@@ -6283,7 +6273,6 @@ let dragSelection = createEmptyDragSelection();
 let suppressCanvasClick = false;
 let recommendationDraft = createDefaultRecommendationDraft("individual");
 let recommendationState = createEmptyRecommendationState();
-let userSeatRating = 0;
 let activeOrderRatingNo = "";
 let experienceScoreState = createEmptyExperienceScoreState();
 let lastSelectionSignature = "";
@@ -6343,9 +6332,6 @@ function bindEvents() {
   dom.memberFields.addEventListener("input", handleAudienceInfoChange);
   dom.recommendBtn.addEventListener("click", handleRecommendSeats);
   dom.clearRecommendBtn.addEventListener("click", handleClearRecommendation);
-  dom.ratingStars.forEach((button) => {
-    button.addEventListener("click", () => handleUserRating(Number(button.dataset.rating)));
-  });
   dom.largeTextToggle.addEventListener("click", () => handleAccessibilityToggle("largeText"));
   dom.highContrastToggle.addEventListener("click", () => handleAccessibilityToggle("highContrast"));
   dom.colorblindToggle.addEventListener("click", () => handleAccessibilityToggle("colorblindFriendly"));
@@ -6952,9 +6938,50 @@ function renderOrderCenter() {
     .join("");
 }
 
+function getOrderScoreSummary(order) {
+  const hall = state.halls[order.hallId];
+  const selectedSeats = hall
+    ? (order.seatKeys || []).map((seatKey) => findSeatByKey(hall, seatKey)).filter(Boolean)
+    : [];
+
+  if (!hall || !selectedSeats.length) {
+    return null;
+  }
+
+  const members = Array.isArray(order.members) ? order.members : [];
+  const hasCompleteAudience = Boolean(
+    TICKET_TYPE_CONFIG[order.ticketType]
+    && members.length
+    && members.every((member) => member.name && Number.isInteger(Number(member.age)))
+  );
+  const audienceContext = hasCompleteAudience
+    ? {
+        valid: true,
+        draft: {
+          ticketType: order.ticketType,
+          members: members.map((member) => ({ name: member.name, age: Number(member.age) }))
+        }
+      }
+    : { valid: false, message: "订单中的同行信息不完整。" };
+  const reference = calculateSystemExperienceScore(hall, selectedSeats, audienceContext);
+  const userRating = clamp(Math.round(Number(order.userRating) || 0), 0, 5);
+  const compositeScore = userRating
+    ? calculateCompositeScore(reference.totalScore, userRating)
+    : null;
+
+  return {
+    referenceScore: reference.totalScore,
+    referenceGrade: getExperienceGrade(reference.totalScore),
+    userRating,
+    compositeScore,
+    compositeGrade: getExperienceGrade(compositeScore)
+  };
+}
+
 function buildOrderCardMarkup(order) {
   const statusCode = order.statusCode || getOrderStatusCode(order.status);
-  const orderRating = clamp(Number(order.userRating) || 0, 0, 5);
+  const orderScore = statusCode === ORDER_STATUS.purchased ? getOrderScoreSummary(order) : null;
+  const orderRating = orderScore?.userRating || 0;
   const action = statusCode === ORDER_STATUS.reserved
     ? `<button class="ghost-btn" type="button" data-order-action="cancel" data-order-no="${escapeHtml(order.orderNo)}">取消预订</button>`
     : statusCode === ORDER_STATUS.purchased
@@ -6964,11 +6991,17 @@ function buildOrderCardMarkup(order) {
         </div>`
       : "";
   const ratingSummary = orderRating
-    ? `<p class="order-card__rating">本次观影评分：${"★".repeat(orderRating)}${"☆".repeat(5 - orderRating)} · ${orderRating} / 5 星</p>`
+    ? `<p class="order-card__rating">观众评分：${"★".repeat(orderRating)}${"☆".repeat(5 - orderRating)} · ${orderRating} / 5 星</p>`
+    : "";
+  const scoreSummary = orderScore
+    ? `<p class="order-card__rating">座位参考分：${orderScore.referenceScore} / 100 · ${orderScore.referenceGrade}</p>`
+    : "";
+  const compositeSummary = orderScore?.compositeScore != null
+    ? `<p class="order-card__composite">综合评分：${orderScore.compositeScore} / 100 · ${orderScore.compositeGrade}</p>`
     : "";
   const ratingEditor = statusCode === ORDER_STATUS.purchased && activeOrderRatingNo === order.orderNo
     ? `<div class="order-rating-panel">
-        <span>为本次观影评分</span>
+        <span>${orderScore ? `座位参考 ${orderScore.referenceScore} / 100` : "为本次观影评分"}</span>
         <div class="order-rating-stars" aria-label="订单评分">
           ${[1, 2, 3, 4, 5].map((rating) => `<button class="${rating <= orderRating ? "is-active" : ""}" type="button" data-order-rating="${rating}" data-order-no="${escapeHtml(order.orderNo)}" aria-label="${rating} 星">★</button>`).join("")}
         </div>
@@ -6985,7 +7018,9 @@ function buildOrderCardMarkup(order) {
       </div>
       <p class="order-card__meta">${escapeHtml(order.hallName)} · ${escapeHtml(order.ticketTypeLabel)} · ${order.totalPeople} 人</p>
       <p class="order-card__seats">${(order.seats || []).map(escapeHtml).join("、")}</p>
+      ${scoreSummary}
       ${ratingSummary}
+      ${compositeSummary}
       <div class="order-card__footer">
         <time class="order-card__time" datetime="${escapeHtml(order.createdAt)}">${escapeHtml(timeLabel)}</time>
         ${action}
@@ -7282,7 +7317,6 @@ function renderCurrentHall() {
   const selectionSignature = `${selectedHallId}:${[...selectedSeatKeys].sort().join("|")}`;
 
   if (selectionSignature !== lastSelectionSignature) {
-    userSeatRating = 0;
     lastSelectionSignature = selectionSignature;
   }
 
@@ -8743,15 +8777,6 @@ function handleClearRecommendation() {
   renderCurrentHall();
 }
 
-function handleUserRating(rating) {
-  if (!isNormalUser()) {
-    return;
-  }
-
-  userSeatRating = userSeatRating === rating ? 0 : rating;
-  updateExperienceScore(state.halls[selectedHallId]);
-}
-
 function createDefaultRecommendationDraft(ticketType) {
   const config = TICKET_TYPE_CONFIG[ticketType];
   const memberCount = config.fixedCount || config.defaultCount;
@@ -8931,13 +8956,12 @@ function updateExperienceScore(hall) {
 
   const audienceContext = getAudienceContextForScoring();
   const systemScore = calculateSystemExperienceScore(hall, selectedSeats, audienceContext);
-  const compositeScore = calculateCompositeScore(systemScore.totalScore, userSeatRating);
 
   experienceScoreState = {
     score: systemScore.totalScore,
     grade: getExperienceGrade(systemScore.totalScore),
-    compositeScore,
-    compositeGrade: getExperienceGrade(compositeScore),
+    compositeScore: null,
+    compositeGrade: "待评估",
     status: systemScore.status,
     message: systemScore.message,
     reasons: systemScore.reasons
@@ -8951,10 +8975,6 @@ function renderExperienceScoreState() {
     ? "-- / 100"
     : `${experienceScoreState.score} / 100`;
   dom.systemScoreGrade.textContent = experienceScoreState.grade;
-  dom.compositeScoreValue.textContent = experienceScoreState.compositeScore == null
-    ? "-- / 100"
-    : `${experienceScoreState.compositeScore} / 100`;
-  dom.compositeScoreGrade.textContent = experienceScoreState.compositeGrade;
   dom.scoreStatus.textContent = experienceScoreState.message;
   dom.scoreStatus.className = "score-status";
 
@@ -8969,24 +8989,6 @@ function renderExperienceScoreState() {
   dom.experienceReasonList.innerHTML = experienceScoreState.reasons
     .map((reason) => `<li>${escapeHtml(reason)}</li>`)
     .join("");
-
-  renderUserRatingState();
-}
-
-function renderUserRatingState() {
-  dom.ratingStars.forEach((button) => {
-    const rating = Number(button.dataset.rating);
-    button.classList.toggle("is-active", rating <= userSeatRating);
-  });
-
-  if (!selectedSeatKeys.length) {
-    dom.userRatingText.textContent = "选好座位后，就可以留下你的观影期待评分。";
-    return;
-  }
-
-  dom.userRatingText.textContent = userSeatRating
-    ? `你的评分是 ${userSeatRating} / 5 星，综合结果已为你更新。`
-    : "还没有你的评分，先为你展示座位参考分。";
 }
 
 function getAudienceContextForScoring() {
@@ -9020,15 +9022,12 @@ function calculateSystemExperienceScore(hall, selectedSeats, audienceContext) {
   return {
     totalScore,
     status: ruleMatch.status,
-    message: buildScoreMessage(totalScore, audienceContext, userSeatRating),
+    message: buildScoreMessage(totalScore, audienceContext),
     reasons: [
       distance.reason,
       horizontal.reason,
       surrounding.reason,
-      ruleMatch.reason,
-      userSeatRating
-        ? `综合结果已加入你的 ${userSeatRating} / 5 星评分。`
-        : "还没有你的评分，综合结果暂按座位参考分展示。"
+      ruleMatch.reason
     ]
   };
 }
@@ -9070,7 +9069,7 @@ function calculateHorizontalMetric(hall, selectedSeats) {
 
 function calculateSurroundingMetric(hall, selectedSeats) {
   const seatMap = new Map(hall.seats.map((seat) => [`${seat.row}-${seat.number}`, seat]));
-  const selectedSet = new Set(selectedSeatKeys);
+  const selectedSet = new Set(selectedSeats.map((seat) => `${seat.row}-${seat.number}`));
   let availableNeighborCount = 0;
   let totalNeighborCount = 0;
 
@@ -9241,17 +9240,13 @@ function getExperienceGrade(score) {
   return "一般";
 }
 
-function buildScoreMessage(score, audienceContext, userRating) {
+function buildScoreMessage(score, audienceContext) {
   const grade = getExperienceGrade(score);
   if (!audienceContext.valid) {
     return `座位参考分为 ${score} / 100（${grade}）。同行信息尚未填全，目前先按普通成人观影情况计算；补充后会立即更新。`;
   }
 
-  if (userRating) {
-    return `座位参考分为 ${score} / 100（${grade}），并已结合你的 ${userRating} 星评分更新综合结果。`;
-  }
-
-  return `座位参考分为 ${score} / 100（${grade}）。你也可以给出 1–5 星评分，看看更贴近自己的综合结果。`;
+  return `座位参考分为 ${score} / 100（${grade}）。购票后可在订单中心留下观影评分。`;
 }
 
 function findSeatByKey(hall, seatKey) {

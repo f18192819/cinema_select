@@ -5660,7 +5660,7 @@ body.mode-large-text #accessibilityMenuBtn {
 
               <!-- 选座读数：当前选了哪些座位 / 操作提示，aria-live 供无障碍播报 -->
               <div class="selection-readout selection-readout--map" id="selectionReadout" aria-live="polite">
-                还没选座。点击可选择一个座位；多选时请按住 Ctrl 再依次点击。
+                还没选座。点击可选择座位；手机端连续点击可多选，再次点击可取消。
               </div>
             </div>
 
@@ -6514,16 +6514,7 @@ async function handleCreateOrder(statusCode) {
   }
 
   recommendationDraft = readRecommendationDraftFromDOM();
-  const validation = window.smartCinemaMobileFlow?.mode === "manual" && window.matchMedia("(max-width: 720px)").matches
-    ? {
-      valid: true,
-      draft: {
-        ticketType: "manual",
-        memberCount: selectedSeatKeys.length,
-        members: selectedSeatKeys.map((seatKey, index) => ({ name: `手动选座观众 ${index + 1}`, age: null, seatKey }))
-      }
-    }
-    : validateRecommendationDraft(recommendationDraft);
+  const validation = validateRecommendationDraft(recommendationDraft);
   if (!validation.valid) {
     setOrderStatus(validation.message, "error");
     return;
@@ -7089,8 +7080,8 @@ function renderAdminSeatCanvas() {
   const maxSeatWidth = logicalWidth - marginX * 2;
   const seatGap = maxSeatWidth / Math.max(hall.seatsPerRow - 1, 1);
   const seatRadius = Math.max(4, Math.min(11, seatGap * 0.3));
-  const labelEnabled = hall.id === "large" || (hall.seatsPerRow <= 20 && seatRadius >= 7);
-  const labelFontSize = hall.id === "large"
+  const labelEnabled = hall.id === "large" || hall.id === "medium" || (hall.seatsPerRow <= 20 && seatRadius >= 7);
+  const labelFontSize = hall.id === "large" || hall.id === "medium"
     ? Math.max(4.5, Math.min(7.5, seatGap * 0.28))
     : 9;
 
@@ -7361,7 +7352,10 @@ function renderHeatPanel(hall) {
 }
 
 function buildSelectionSummary() {
-  const adjustmentHint = "点击可更换座位；需要多选时，请按住 Ctrl（Mac 可按 Command）再依次点击，也可以直接拖拽框选。";
+  const isMobile = window.matchMedia("(max-width: 720px)").matches;
+  const adjustmentHint = isMobile
+    ? "连续点击空座可增减选择；再次点击已选座位即可取消。"
+    : "点击可更换座位；需要多选时，请按住 Ctrl（Mac 可按 Command）再依次点击，也可以直接拖拽框选。";
   const recommendationIsSelected = recommendedSeatKeys.length > 0 &&
     recommendedSeatKeys.length === selectedSeatKeys.length &&
     recommendedSeatKeys.every((seatKey) => selectedSeatKeys.includes(seatKey));
@@ -7369,7 +7363,9 @@ function buildSelectionSummary() {
   if (!selectedSeatKeys.length) {
     return recommendedSeatKeys.length
       ? `已为你标出推荐座位：青色外环是推荐结果，金色外环是手动调整。${adjustmentHint}`
-      : `还没选座。点击可选择一个座位；需要多选时，请按住 Ctrl 再依次点击。`;
+      : isMobile
+        ? "还没选座。连续点击空座可多选；再次点击已选座位可取消。"
+        : "还没选座。点击可选择一个座位；需要多选时，请按住 Ctrl 再依次点击。";
   }
 
   const seatText = selectedSeatKeys.map(formatSeatLabel).join("、");
@@ -7930,8 +7926,8 @@ function drawSeats(hall, width, isLoggedIn, palette) {
   const maxSeatWidth = width - marginX * 2;
   const seatGap = maxSeatWidth / Math.max(seatsPerRow - 1, 1); // 同排相邻座位 x 间距
   const seatRadius = Math.max(4, Math.min(12, seatGap * 0.3)); // 座位半边长，随密度自适应
-  const labelEnabled = hall.id === "large" || (seatsPerRow <= 20 && seatRadius >= 7);
-  const labelFontSize = hall.id === "large"
+  const labelEnabled = hall.id === "large" || hall.id === "medium" || (seatsPerRow <= 20 && seatRadius >= 7);
+  const labelFontSize = hall.id === "large" || hall.id === "medium"
     ? Math.max(4.5, Math.min(7.5, seatGap * 0.28))
     : 10 * fontScale;
   const seats = [];
@@ -8080,8 +8076,8 @@ function handleCanvasClick(event) {
   }
 
   const previousSelection = [...selectedSeatKeys];
-  if (event.ctrlKey || event.metaKey) {
-    toggleSeatSelection(hitSeat.key); // Ctrl：切换该座位的选中状态
+  if (window.matchMedia("(max-width: 720px)").matches || event.ctrlKey || event.metaKey) {
+    toggleSeatSelection(hitSeat.key); // 手机端连续点击，桌面端 Ctrl/Command 点击均可增减选择
   } else {
     // 普通单击：点已选的→清空；点新的→只选这个
     selectedSeatKeys = selectedSeatKeys.includes(hitSeat.key) ? [] : [hitSeat.key];
@@ -9987,7 +9983,7 @@ function escapeHtml(value) {
 
   const mobileSeatActions = document.createElement("div");
   mobileSeatActions.className = "mobile-seat-actions mobile-flow-ui";
-  mobileSeatActions.innerHTML = '<button type="button">✨ 智能推荐</button><button type="button">热度 / 图例</button>';
+  mobileSeatActions.innerHTML = '<button type="button">选座信息</button><button type="button">热度 / 图例</button>';
   mobileHallTabs.after(mobileSeatActions);
 
   const recommendationPanel = document.querySelector(".recommend-panel");
@@ -9995,7 +9991,7 @@ function escapeHtml(value) {
   const recommendationDrawer = document.createElement("section");
   recommendationDrawer.className = "mobile-recommend-drawer";
   recommendationDrawer.hidden = true;
-  recommendationDrawer.innerHTML = '<div class="mobile-recommend-drawer__head"><strong>✨ 智能推荐座位</strong><button type="button">关闭</button></div>';
+  recommendationDrawer.innerHTML = '<div class="mobile-recommend-drawer__head"><strong>选座信息</strong><button type="button">关闭</button></div>';
   app.append(recommendationDrawer);
 
   const seatBar = document.createElement("aside");
@@ -10077,9 +10073,9 @@ function escapeHtml(value) {
     flowUi.hidden = !isMobile();
     seatBar.hidden = !isMobile() || flow.step !== "seats";
     seatBar.querySelector("strong").textContent = seatCount ? `已选 ${seatCount} 座` : "尚未选择座位";
-    seatBar.querySelector("span").textContent = seatCount ? `预计 ¥${seatCount * 46}` : "选择座位后继续";
+    seatBar.querySelector("span").textContent = seatCount ? "连续点击座位可继续增减" : "选择座位后继续";
     seatBar.querySelector("button").disabled = seatCount === 0;
-    orderSummary.innerHTML = [["影厅", hall?.name || "-"], ["座位", seatText], ["票型", ticketLabel], ["人数", `${seatCount} 人`], ["金额", seatCount ? `¥${seatCount * 46}` : "-"]]
+    orderSummary.innerHTML = [["影厅", hall?.name || "-"], ["座位", seatText], ["票型", ticketLabel], ["人数", `${seatCount} 人`]]
       .map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
     if (!isMobile()) closeRecommendationDrawer();
     syncRecommendationPanelLocation();

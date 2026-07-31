@@ -1,6 +1,6 @@
 # SmartCinema 智能影院选座系统
 
-SmartCinema 是一个使用 `HTML5`、`CSS3`、原生 JavaScript 和 Canvas 实现的纯前端影院选座课程项目。系统围绕“减少用户选座决策成本”设计，提供普通用户选座端与管理员后台，并使用浏览器 LocalStorage 保存数据，不依赖后端或第三方图表库。
+SmartCinema 是一个使用 `HTML5`、`CSS3`、原生 JavaScript 和 Canvas 实现的纯前端影院选座课程项目。当前运行代码集中在单文件 `index.html` 中，系统围绕“减少用户选座决策成本”设计，提供普通用户选座端与管理员后台，并使用浏览器 LocalStorage 保存数据，不依赖第三方图表库。
 
 详细操作说明请见 [用户使用手册](USER_MANUAL.md)。课程原始要求见 [大作业说明](大作业选题一：SmartCinema智能影院选座系统（作业说明）.docx)。
 
@@ -18,30 +18,17 @@ python -m http.server 8080
 
 ### 单文件前端
 
-当前 `index.html` 已内联全部浏览器端 HTML、CSS 和 JavaScript，可单独打开运行本地选座功能；`style.css` 与 `app.js` 保留为便于阅读、维护和后续拆分的源文件，页面运行时不再加载它们。
+当前 `index.html` 已内联全部浏览器端 HTML、CSS 和 JavaScript，可单独打开运行本地选座功能。
 
 ### WebSocket 实时协作模式
 
-要让不同设备或不同浏览器之间实时同步座位，请使用项目自带的零依赖 WebSocket 服务，而不是直接双击 `index.html`：
-
-```powershell
-node server.js
-```
-
-然后让所有测试设备访问同一个服务地址，例如本机访问 `http://localhost:8080`；局域网设备访问 `http://本机IP:8080`。浏览器会自动连接 `ws://地址/ws`，无需安装 `ws`、ECharts 或任何第三方包。
-
-服务端把已确认的影院状态保存到 `data/smartCinemaState.json`。该文件是演示数据，已加入 `.gitignore`；重置实时演示数据时，可在停止服务后删除该文件。
-
-没有启动 `server.js`，或直接打开 `index.html` 时，项目会自动退回 `BroadcastChannel + storage` 的本地多标签页同步模式，原有功能仍可使用。
+当前单文件版本使用 `BroadcastChannel + storage` 模拟同一浏览器配置文件中的多标签页座位同步。直接打开 `index.html` 或使用上述静态服务均可运行；跨设备的真实 WebSocket 服务需要额外部署后端，本项目默认不包含该服务。
 
 ## 项目结构
 
 ```text
 big_homework/
-├─ index.html          页面结构：登录、用户端、管理员后台
-├─ style.css           科技感主题、响应式布局、无障碍模式样式
-├─ app.js              业务状态、Canvas 绘制、交互、LocalStorage 持久化
-├─ server.js            零依赖静态服务器与 WebSocket 实时状态服务
+├─ index.html          单文件运行入口：页面、样式、业务状态、Canvas 与交互逻辑
 ├─ package.json         `npm start` 启动命令（不含第三方依赖）
 ├─ USER_MANUAL.md      用户使用手册
 ├─ PHASE1_REPORT.md    第一阶段开发记录
@@ -88,6 +75,8 @@ big_homework/
 
 大字体、高对比度、色盲友好和语音提示均通过 `body` 模式类和 `smartCinemaAccessibility` 保存当前登录期间的设置，切换后立即影响现有页面，不需要重载或额外页面；退出登录时会自动恢复默认并清除该配置。
 
+手机端不再简单堆叠桌面模块，而是以“影厅切换 → Canvas 座位图 → 确认订单”为主路径。手动选座可直接开始；“选座信息”在同页底部抽屉中按需展开，填写方式与 PC 端一致，推荐完成后自动关闭，用户仍可继续修改已选座位。手机端和桌面端一样，预订或购票前必须填写完整的选座信息。热度、图例与推荐信息默认折叠，固定底栏始终显示当前选座与确认入口。桌面端保留完整工作台和左右分栏布局。
+
 ## LocalStorage 数据
 
 | 键名 | 用途 |
@@ -111,7 +100,7 @@ big_homework/
 | 模块 1：智能推荐选座 | `handleRecommendSeats()`、`recommendSeatsForHall()`、`calculateAudienceRestriction()` 及其候选座位辅助函数 | 支持个人、情侣、家庭、团体票；处理少年、老年人、连续座位和团体同排约束，并输出推荐理由。 |
 <!-- 组员2负责模块对照表：下面"模块2 手动选座"和"模块3 热度地图"两行
      列出了你负责部分的核心函数名，可在 app.js 里直接搜索跳转。 -->
-| 模块 2：手动选座 | `handleCanvasClick()`、`handleCanvasPointerDown()`、`handleCanvasPointerMove()`、`handleCanvasPointerUp()` | 支持单选、`Ctrl` 多选、推荐后手动修改和拖拽框选。 |
+| 模块 2：手动选座 | `handleCanvasClick()`、`handleCanvasPointerDown()`、`handleCanvasPointerMove()`、`handleCanvasPointerUp()` | 桌面端支持单选、`Ctrl` 多选与拖拽框选；手机端连续点击可多选，再次点击可取消，推荐后仍可手动修改。 |
 | 模块 3：影院热度地图 | `getHeatSourceSeats()`、`getHeatInfluenceByDistance()`、`calculateSeatHeat()`、`getHeatBorderColor()`、`renderHeatPanel()`；Canvas 的 `drawSeats()` | 热度由预订/购票/已售座位按距离分段扩散并累加，只绘制外圈边框。当前版本不包含作业说明中的“一周播放动画”。 |
 | 模块 4：观影体验评分 | `updateExperienceScore()`、`calculateSystemExperienceScore()`、`handleUserRating()`、`renderExperienceScoreState()` | 根据距离、居中程度、周边空位和规则匹配给出分数与等级，并显示用户评分后的综合结果。 |
 | 模块 5：无障碍模式 | `handleAccessibilityToggle()`、`resetAccessibilitySettings()`、`applyAccessibilitySettings()`、`renderAccessibilityState()`、`speakMessage()`；`style.css` 的 `mode-large-text`、`mode-high-contrast`、`mode-colorblind` | 支持大字体、高对比度、色盲友好和 SpeechSynthesis 语音提示；退出登录时恢复默认配置。 |
@@ -127,7 +116,7 @@ big_homework/
 | Canvas 弧形座位布局 | 已完成 |
 | Canvas 热度边框 | 已完成 |
 | LocalStorage 数据保存 | 已完成 |
-| PC、平板、手机响应式布局 | 已完成基础适配 |
+| PC、平板、手机响应式布局 | 已完成：桌面保留完整工作台；手机端使用座位图优先、抽屉式推荐和固定确认栏。 |
 | AI 问答式观影顾问 | 未单独实现；当前为表单式智能推荐 |
 | 一周热度变化播放 | 未实现；当前为订单/座位状态实时热度扩散 |
 | WebSocket 多人实时更新 | 已完成：`server.js` 提供零依赖 WebSocket 服务；跨浏览器/设备访问同一服务地址即可实时同步，未启动服务时保留本地同步降级。 |
@@ -137,7 +126,7 @@ big_homework/
 1. 使用管理员账号登录，检查后台概览、座位状态修改、订单列表和普通用户列表。
 2. 退出后注册普通用户，检查进入选座端且无法进入后台。
 3. 输入观众信息生成推荐，确认推荐外圈、理由和座位数量正确。
-4. 测试单选、`Ctrl` 多选与拖拽框选；已售、预订、禁用座位不可选。
+4. 桌面端测试单选、`Ctrl` 多选与拖拽框选；手机端测试连续点击多选与再次点击取消；已售、预订、禁用座位不可选。
 5. 预订、取消预订、购票和退票后刷新页面，确认座位、订单与热度边框仍同步。
 6. 逐个开启无障碍模式，确认样式立即变化；退出登录后确认所有模式恢复默认。
 

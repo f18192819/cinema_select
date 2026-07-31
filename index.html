@@ -966,6 +966,56 @@ body.mode-high-contrast .admin-status {
   font-size: 13px;
 }
 
+.order-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.order-card__rating {
+  margin: 10px 0 0;
+  color: #ead5a7;
+  font-size: 13px;
+}
+
+.order-rating-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 11px 12px;
+  border: 1px solid rgba(210, 180, 119, 0.2);
+  border-radius: 11px;
+  background: rgba(210, 180, 119, 0.05);
+  color: var(--text-soft);
+  font-size: 13px;
+}
+
+.order-rating-stars {
+  display: flex;
+  gap: 3px;
+}
+
+.order-rating-stars button {
+  min-width: 30px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  color: #8f8f8a;
+  background: transparent;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.order-rating-stars button:hover,
+.order-rating-stars button.is-active {
+  color: #e6c87f;
+  background: rgba(210, 180, 119, 0.1);
+}
+
 .user-strip strong {
   display: block;
   margin-top: 8px;
@@ -6234,6 +6284,7 @@ let suppressCanvasClick = false;
 let recommendationDraft = createDefaultRecommendationDraft("individual");
 let recommendationState = createEmptyRecommendationState();
 let userSeatRating = 0;
+let activeOrderRatingNo = "";
 let experienceScoreState = createEmptyExperienceScoreState();
 let lastSelectionSignature = "";
 let accessibilityState = loadAccessibilityState();
@@ -6802,6 +6853,32 @@ function validateOrderSelection(hall, draft, selectedSeats) {
 }
 
 function handleOrderListAction(event) {
+  const ratingStar = event.target.closest("[data-order-rating]");
+  if (ratingStar) {
+    const order = state.orders.find((entry) => entry.orderNo === ratingStar.dataset.orderNo);
+    const currentUser = getCurrentUser();
+    const rating = Number(ratingStar.dataset.orderRating);
+
+    if (!order || !currentUser || !isNormalUser() || order.userId !== currentUser.id) {
+      setOrderStatus("没有找到这笔订单，或它不属于当前账号，请确认后再试。", "error");
+      return;
+    }
+
+    if (order.statusCode !== ORDER_STATUS.purchased || !Number.isInteger(rating) || rating < 1 || rating > 5) {
+      setOrderStatus("仅已购票订单可以进行 1–5 星评分。", "error");
+      return;
+    }
+
+    order.userRating = rating;
+    order.ratedAt = new Date().toISOString();
+    activeOrderRatingNo = "";
+    saveState("订单评分已更新");
+    renderOrderCenter();
+    setOrderStatus(`已为订单 ${order.orderNo} 评分 ${rating} 星，感谢你的反馈。`, "success");
+    speakMessage(`已完成${rating}星评分，感谢您的反馈。`);
+    return;
+  }
+
   const actionButton = event.target.closest("[data-order-action]");
   if (!actionButton) {
     return;
@@ -6827,6 +6904,12 @@ function handleOrderListAction(event) {
     updateOrderStatus(order, ORDER_STATUS.refunded);
     setOrderStatus(`退票已完成，订单 ${order.orderNo} 的座位已经释放。`, "success");
     speakMessage("退票成功，座位已释放。");
+    return;
+  }
+
+  if (action === "rate" && order.statusCode === ORDER_STATUS.purchased) {
+    activeOrderRatingNo = activeOrderRatingNo === order.orderNo ? "" : order.orderNo;
+    renderOrderCenter();
   }
 }
 
@@ -6871,11 +6954,26 @@ function renderOrderCenter() {
 
 function buildOrderCardMarkup(order) {
   const statusCode = order.statusCode || getOrderStatusCode(order.status);
+  const orderRating = clamp(Number(order.userRating) || 0, 0, 5);
   const action = statusCode === ORDER_STATUS.reserved
     ? `<button class="ghost-btn" type="button" data-order-action="cancel" data-order-no="${escapeHtml(order.orderNo)}">取消预订</button>`
     : statusCode === ORDER_STATUS.purchased
-      ? `<button class="ghost-btn" type="button" data-order-action="refund" data-order-no="${escapeHtml(order.orderNo)}">退票</button>`
+      ? `<div class="order-card__actions">
+          <button class="ghost-btn" type="button" data-order-action="rate" data-order-no="${escapeHtml(order.orderNo)}">${orderRating ? "重新评分" : "评分"}</button>
+          <button class="ghost-btn" type="button" data-order-action="refund" data-order-no="${escapeHtml(order.orderNo)}">退票</button>
+        </div>`
       : "";
+  const ratingSummary = orderRating
+    ? `<p class="order-card__rating">本次观影评分：${"★".repeat(orderRating)}${"☆".repeat(5 - orderRating)} · ${orderRating} / 5 星</p>`
+    : "";
+  const ratingEditor = statusCode === ORDER_STATUS.purchased && activeOrderRatingNo === order.orderNo
+    ? `<div class="order-rating-panel">
+        <span>为本次观影评分</span>
+        <div class="order-rating-stars" aria-label="订单评分">
+          ${[1, 2, 3, 4, 5].map((rating) => `<button class="${rating <= orderRating ? "is-active" : ""}" type="button" data-order-rating="${rating}" data-order-no="${escapeHtml(order.orderNo)}" aria-label="${rating} 星">★</button>`).join("")}
+        </div>
+      </div>`
+    : "";
   const statusLabel = getOrderStatusLabel(statusCode);
   const timeLabel = formatOrderTime(order.createdAt);
 
@@ -6887,10 +6985,12 @@ function buildOrderCardMarkup(order) {
       </div>
       <p class="order-card__meta">${escapeHtml(order.hallName)} · ${escapeHtml(order.ticketTypeLabel)} · ${order.totalPeople} 人</p>
       <p class="order-card__seats">${(order.seats || []).map(escapeHtml).join("、")}</p>
+      ${ratingSummary}
       <div class="order-card__footer">
         <time class="order-card__time" datetime="${escapeHtml(order.createdAt)}">${escapeHtml(timeLabel)}</time>
         ${action}
       </div>
+      ${ratingEditor}
     </article>
   `;
 }
@@ -10188,6 +10288,8 @@ function escapeHtml(value) {
   const flowUi = document.getElementById("mobileFlowUi");
   const mobileQuery = window.matchMedia("(max-width: 720px)");
   const flow = window.smartCinemaMobileFlow = { step: "seats", mode: "info" };
+  let lastMobileSelectionSignature = "";
+  let mobileSelectionNotice = "";
 
   const canvasPanel = document.querySelector(".canvas-panel");
   const panelHeading = canvasPanel?.querySelector(":scope > .panel-heading");
@@ -10223,6 +10325,13 @@ function escapeHtml(value) {
   checkoutBackButton.type = "button";
   checkoutBackButton.textContent = "返回选座界面";
   orderSummary.after(checkoutBackButton);
+
+  const checkoutPanel = document.querySelector(".checkout-panel");
+  const experienceScorePanel = document.querySelector(".insights-grid > .score-panel");
+  const experienceScoreHome = {
+    parent: experienceScorePanel?.parentElement,
+    next: experienceScorePanel?.nextElementSibling
+  };
 
   document.querySelectorAll(".seat-map-sidebar > section").forEach((section, index) => {
     const details = document.createElement("details");
@@ -10273,6 +10382,23 @@ function escapeHtml(value) {
     }
   }
 
+  function syncExperienceScorePanelLocation() {
+    if (!experienceScorePanel || !checkoutPanel) {
+      return;
+    }
+
+    if (isMobile() && flow.step === "checkout") {
+      if (experienceScorePanel.parentElement !== checkoutPanel) {
+        checkoutPanel.append(experienceScorePanel);
+      }
+      return;
+    }
+
+    if (experienceScoreHome.parent && experienceScorePanel.parentElement !== experienceScoreHome.parent) {
+      experienceScoreHome.parent.insertBefore(experienceScorePanel, experienceScoreHome.next);
+    }
+  }
+
   function openRecommendationDrawer() {
     flow.mode = "info";
     syncRecommendationPanelLocation();
@@ -10311,6 +10437,11 @@ function escapeHtml(value) {
   function render() {
     const seatCount = selectedSeatKeys.length;
     const hall = state.halls[selectedHallId];
+    const selectionSignature = `${selectedHallId}:${[...selectedSeatKeys].sort().join("|")}`;
+    if (selectionSignature !== lastMobileSelectionSignature) {
+      mobileSelectionNotice = "";
+      lastMobileSelectionSignature = selectionSignature;
+    }
     const selectionInfoCheck = getMobileSelectionInfoCheck();
     const ticketLabel = TICKET_TYPE_CONFIG[recommendationDraft.ticketType]?.label || "未选择票型";
     const seatText = selectedSeatKeys.map(formatSeatLabel).join("、") || "未选择";
@@ -10319,15 +10450,16 @@ function escapeHtml(value) {
     flowUi.hidden = !isMobile();
     seatBar.hidden = !isMobile() || flow.step !== "seats";
     seatBar.querySelector("strong").textContent = seatCount ? `已选 ${seatCount} 座` : "尚未选择座位";
-    seatBar.querySelector("span").textContent = !selectionInfoCheck.valid
+    seatBar.querySelector("span").textContent = mobileSelectionNotice || (!selectionInfoCheck.valid
       ? "请先填写完整选座信息"
-      : seatCount ? "连续点击座位可继续增减" : "选择座位后继续";
+      : seatCount ? "连续点击座位可继续增减" : "选择座位后继续");
     seatBar.querySelector("button").disabled = seatCount === 0;
     seatBar.querySelector("button").textContent = selectionInfoCheck.valid ? "确认座位" : "填写选座信息";
     orderSummary.innerHTML = [["影厅", hall?.name || "-"], ["座位", seatText], ["票型", ticketLabel], ["人数", selectionInfoCheck.valid ? `${selectionInfoCheck.draft.members.length} 人` : "待填写"]]
       .map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
     if (!isMobile()) closeRecommendationDrawer();
     syncRecommendationPanelLocation();
+    syncExperienceScorePanelLocation();
     renderHallTabs();
   }
 
@@ -10376,6 +10508,19 @@ function escapeHtml(value) {
       renderRecommendationState();
       openRecommendationDrawer();
       focusFirstIncompleteAudienceField();
+      return;
+    }
+
+    const hall = state.halls[selectedHallId];
+    const selectedSeats = hall
+      ? selectedSeatKeys.map((seatKey) => findSeatByKey(hall, seatKey)).filter(Boolean)
+      : [];
+    const orderCheck = hall
+      ? validateOrderSelection(hall, selectionInfoCheck.draft, selectedSeats)
+      : { valid: false, message: "当前影厅状态已更新，请重新选择座位后再试。" };
+    if (!orderCheck.valid) {
+      mobileSelectionNotice = orderCheck.message;
+      render();
       return;
     }
 

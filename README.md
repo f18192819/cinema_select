@@ -104,7 +104,7 @@ big_homework/
 | 模块 3：影院热度地图 | `getHeatSourceSeats()`、`getHeatInfluenceByDistance()`、`calculateSeatHeat()`、`getHeatBorderColor()`、`renderHeatPanel()`；Canvas 的 `drawSeats()` | 热度由预订/购票/已售座位按距离分段扩散并累加，只绘制外圈边框。当前版本不包含作业说明中的“一周播放动画”。 |
 | 模块 4：观影体验评分 | `updateExperienceScore()`、`calculateSystemExperienceScore()`、`handleUserRating()`、`renderExperienceScoreState()` | 根据距离、居中程度、周边空位和规则匹配给出分数与等级，并显示用户评分后的综合结果。 |
 | 模块 5：无障碍模式 | `handleAccessibilityToggle()`、`resetAccessibilitySettings()`、`applyAccessibilitySettings()`、`renderAccessibilityState()`、`speakMessage()`；`style.css` 的 `mode-large-text`、`mode-high-contrast`、`mode-colorblind` | 支持大字体、高对比度、色盲友好和 SpeechSynthesis 语音提示；退出登录时恢复默认配置。 |
-| 模块 6：订单中心 | `handleCreateOrder()`、`validateOrderSelection()`、`handleOrderListAction()`、`updateOrderStatus()`、`renderOrderCenter()` | 支持预订、取消预订、购票和退票；订单状态会同步更新座位。 |
+| 模块 6：订单中心 | `handleCreateOrder()`、`validateOrderSelection()`、`handleOrderListAction()`、`updateOrderStatus()`、`renderOrderCenter()` | 支持预订、取消预订、购票、退票和已购票订单 1–5 星评分；订单状态会同步更新座位。 |
 | 加分项：多人实时座位更新 | `server.js`、`initializeWebSocketSync()`、`submitStateToServer()`、`runSeatStateTransaction()`、`sessionStorage` 会话函数 | WebSocket 服务端保存权威状态并按版本拒绝过期提交，支持不同浏览器或设备的实时同步；服务未启动时自动降级为本地多标签页同步。 |
 | 管理员扩展 | `renderAdminDashboard()`、`renderAdminSeatCanvas()`、`handleAdminSeatCanvasClick()`、`handleAdminCanvasPan()`、`handleAdminOrderAction()`、`handleAdminResetHall()`、`renderAdminUsers()` | 管理员可查看概览、修改座位、重置影厅、管理全部订单和查看普通用户；手机端中厅和大厅支持画布上下左右移动；不展示用户密码。 |
 

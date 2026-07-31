@@ -73,9 +73,9 @@ big_homework/
 
 ### 7. 无障碍和响应式作为全局能力
 
-大字体、高对比度、色盲友好和语音提示均通过 `body` 模式类和 `smartCinemaAccessibility` 保存当前登录期间的设置，切换后立即影响现有页面，不需要重载或额外页面；退出登录时会自动恢复默认并清除该配置。
+大字体、高对比度、色盲友好和语音提示均通过 `body` 模式类和 `smartCinemaAccessibility` 保存当前登录期间的设置，切换后立即影响现有页面，不需要重载或额外页面；登录首页、桌面用户端和移动端顶部均可通过同一组“无障碍模式”下拉菜单打开设置。退出登录时会自动恢复默认并清除该配置。
 
-手机端不再简单堆叠桌面模块，而是以“影厅切换 → Canvas 座位图 → 确认订单”为主路径。手动选座可直接开始；“选座信息”在同页底部抽屉中按需展开，填写方式与 PC 端一致，推荐完成后自动关闭，用户仍可继续修改已选座位。手机端和桌面端一样，预订或购票前必须填写完整的选座信息。热度、图例与推荐信息默认折叠，固定底栏始终显示当前选座与确认入口。桌面端保留完整工作台和左右分栏布局。
+手机端不再简单堆叠桌面模块，而是以“影厅切换 → Canvas 座位图 → 确认订单”为主路径。手动选座可直接开始；“选座信息”在同页底部抽屉中按需展开，填写方式与 PC 端一致，推荐完成后自动关闭，用户仍可继续修改已选座位。手机端和桌面端一样，确认座位、预订或购票前必须填写完整的选座信息；未填写时底栏会引导打开信息抽屉，而不会进入订单确认。热度、图例与推荐信息默认折叠，固定底栏始终显示当前选座与确认入口。桌面端保留完整工作台和左右分栏布局。
 
 ## LocalStorage 数据
 
@@ -106,7 +106,7 @@ big_homework/
 | 模块 5：无障碍模式 | `handleAccessibilityToggle()`、`resetAccessibilitySettings()`、`applyAccessibilitySettings()`、`renderAccessibilityState()`、`speakMessage()`；`style.css` 的 `mode-large-text`、`mode-high-contrast`、`mode-colorblind` | 支持大字体、高对比度、色盲友好和 SpeechSynthesis 语音提示；退出登录时恢复默认配置。 |
 | 模块 6：订单中心 | `handleCreateOrder()`、`validateOrderSelection()`、`handleOrderListAction()`、`updateOrderStatus()`、`renderOrderCenter()` | 支持预订、取消预订、购票和退票；订单状态会同步更新座位。 |
 | 加分项：多人实时座位更新 | `server.js`、`initializeWebSocketSync()`、`submitStateToServer()`、`runSeatStateTransaction()`、`sessionStorage` 会话函数 | WebSocket 服务端保存权威状态并按版本拒绝过期提交，支持不同浏览器或设备的实时同步；服务未启动时自动降级为本地多标签页同步。 |
-| 管理员扩展 | `renderAdminDashboard()`、`renderAdminSeatCanvas()`、`handleAdminSeatCanvasClick()`、`handleAdminOrderAction()`、`handleAdminResetHall()`、`renderAdminUsers()` | 管理员可查看概览、修改座位、重置影厅、管理全部订单和查看普通用户；不展示用户密码。 |
+| 管理员扩展 | `renderAdminDashboard()`、`renderAdminSeatCanvas()`、`handleAdminSeatCanvasClick()`、`handleAdminCanvasPan()`、`handleAdminOrderAction()`、`handleAdminResetHall()`、`renderAdminUsers()` | 管理员可查看概览、修改座位、重置影厅、管理全部订单和查看普通用户；手机端中厅和大厅支持画布上下左右移动；不展示用户密码。 |
 
 ## 作业要求完成情况
 

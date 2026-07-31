@@ -1152,6 +1152,10 @@ body.mode-high-contrast .admin-status {
   overflow-x: auto;
 }
 
+.admin-canvas-nav {
+  display: none;
+}
+
 #adminSeatCanvas {
   display: block;
   width: 100%;
@@ -4570,12 +4574,12 @@ body.mode-large-text .seat-map-sidebar .legend__title--ring {
 }
 
 .accessibility-popover {
-  position: absolute;
+  position: fixed;
   z-index: 120;
-  top: calc(100% + 10px);
-  right: 0;
+  top: var(--accessibility-menu-top, 20px);
+  left: var(--accessibility-menu-left, 20px);
   width: min(560px, calc(100vw - 40px));
-  max-height: calc(100vh - 110px);
+  max-height: calc(100dvh - 32px);
   overflow-x: hidden;
   overflow-y: auto;
   border: 1px solid rgba(255, 255, 255, 0.13);
@@ -4645,6 +4649,37 @@ body.mode-large-text .seat-map-sidebar .legend__title--ring {
 
 .accessibility-panel--popover .accessibility-status {
   margin-top: 12px;
+}
+
+.auth-accessibility-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 42px;
+  margin: 2px 0 14px;
+  border: 1px solid rgba(210, 180, 119, 0.28);
+  border-radius: 11px;
+  color: #e8d5a6;
+  background: rgba(210, 180, 119, 0.07);
+  font: 700 0.82rem/1.2 var(--font-sans);
+  cursor: pointer;
+}
+
+.auth-accessibility-btn:hover,
+.auth-accessibility-btn[aria-expanded="true"] {
+  border-color: rgba(210, 180, 119, 0.54);
+  background: rgba(210, 180, 119, 0.14);
+}
+
+.auth-accessibility-btn.has-active-setting::after {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d2b477;
+  box-shadow: 0 0 0 3px rgba(210, 180, 119, 0.13);
+  content: "";
 }
 
 .insights-grid {
@@ -5286,7 +5321,9 @@ body.mode-large-text #accessibilityMenuBtn {
   }
 
   .mobile-flow-nav strong { color: #ead5a7; letter-spacing: 0.08em; }
-  .mobile-flow-nav button { border: 0; color: var(--text-soft); background: transparent; font: inherit; }
+  .mobile-flow-nav__actions { display: flex; align-items: center; gap: 2px; }
+  .mobile-flow-nav button { min-height: 36px; padding: 0 6px; border: 0; color: var(--text-soft); background: transparent; font: 0.72rem/1.1 var(--font-sans); white-space: nowrap; }
+  .mobile-flow-nav button:active, .mobile-flow-nav button[aria-expanded="true"] { color: #f4dfad; background: rgba(210,180,119,0.1); }
 
   .mobile-hall-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
   .mobile-hall-tabs button { min-height: 48px; border: 1px solid var(--line-soft); border-radius: 10px; color: var(--text-soft); background: rgba(255,255,255,0.03); font: inherit; }
@@ -5295,7 +5332,7 @@ body.mode-large-text #accessibilityMenuBtn {
   .mobile-seat-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: -4px 0 14px; }
   .mobile-seat-actions button { min-height: 42px; border: 1px solid rgba(210,180,119,0.26); border-radius: 10px; color: #ead5a7; background: rgba(255,255,255,0.035); font: inherit; }
 
-  .mobile-recommend-drawer { position: fixed; z-index: 50; right: 0; bottom: 0; left: 0; max-height: 82vh; padding: 16px 14px calc(16px + env(safe-area-inset-bottom)); overflow: auto; border: 1px solid rgba(210,180,119,0.3); border-radius: 20px 20px 0 0; background: #151412; box-shadow: 0 -20px 54px rgba(0,0,0,0.45); }
+  .mobile-recommend-drawer { position: fixed; z-index: 50; right: 0; bottom: var(--mobile-keyboard-offset, 0px); left: 0; max-height: min(82vh, calc(var(--mobile-drawer-height, 100dvh) - 12px)); padding: 16px 14px calc(16px + env(safe-area-inset-bottom)); overflow: auto; border: 1px solid rgba(210,180,119,0.3); border-radius: 20px 20px 0 0; background: #151412; box-shadow: 0 -20px 54px rgba(0,0,0,0.45); }
   .mobile-recommend-drawer[hidden] { display: none; }
   .mobile-recommend-drawer__head { display:flex; align-items:center; justify-content:space-between; margin-bottom: 10px; }
   .mobile-recommend-drawer__head strong { color:#ead5a7; }
@@ -5332,6 +5369,65 @@ body.mode-large-text #accessibilityMenuBtn {
   .mobile-order-summary span, .mobile-order-summary strong { display:block; }
   .mobile-order-summary span { color: var(--text-soft); font-size: 0.72rem; }
   .mobile-order-summary strong { margin-top: 4px; color: #f4e7c6; font-size: 0.84rem; }
+
+  .accessibility-popover {
+    width: calc(100vw - 20px);
+    max-height: calc(100dvh - 20px);
+  }
+
+  .accessibility-panel--popover {
+    padding: 16px;
+  }
+
+  .accessibility-panel--popover .accessibility-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-canvas-nav:not([hidden]) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 0 0 10px;
+    padding: 9px 10px;
+    border: 1px solid rgba(210, 180, 119, 0.24);
+    border-radius: 12px;
+    color: #d8c69d;
+    background: rgba(255, 255, 255, 0.025);
+    font-size: 0.75rem;
+    line-height: 1.45;
+  }
+
+  .admin-canvas-nav__buttons {
+    display: grid;
+    flex: 0 0 auto;
+    grid-template-columns: repeat(3, 32px);
+    grid-template-rows: repeat(2, 30px);
+    gap: 3px;
+  }
+
+  .admin-canvas-nav__buttons button {
+    min-width: 0;
+    padding: 0;
+    border: 1px solid rgba(210, 180, 119, 0.28);
+    border-radius: 7px;
+    color: #f2dfb0;
+    background: rgba(210, 180, 119, 0.08);
+    font: 700 1rem/1 sans-serif;
+  }
+
+  .admin-canvas-nav__button--up { grid-column: 2; grid-row: 1; }
+  .admin-canvas-nav__button--left { grid-column: 1; grid-row: 2; }
+  .admin-canvas-nav__button--down { grid-column: 2; grid-row: 2; }
+  .admin-canvas-nav__button--right { grid-column: 3; grid-row: 2; }
+
+  .admin-canvas-frame {
+    max-height: min(62vh, 520px);
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+  }
 }
 
 @media (min-width: 721px) {
@@ -5391,6 +5487,18 @@ body.mode-large-text #accessibilityMenuBtn {
           <button class="auth-switch__btn" data-auth-view="register" role="tab" aria-selected="false">注册</button>
         </div>
 
+        <button
+          class="auth-accessibility-btn"
+          id="authAccessibilityMenuBtn"
+          type="button"
+          aria-expanded="false"
+          aria-controls="accessibilityMenu"
+          aria-haspopup="dialog"
+        >
+          <span aria-hidden="true">⚙</span>
+          <span>无障碍模式</span>
+        </button>
+
         <form class="auth-form is-active" id="loginForm" autocomplete="on">
           <label class="field">
             <span>用户名</span>
@@ -5429,8 +5537,16 @@ body.mode-large-text #accessibilityMenuBtn {
       <div class="mobile-flow-ui" id="mobileFlowUi">
         <nav class="mobile-flow-nav" aria-label="移动端导航">
           <strong>SmartCinema</strong>
-          <span>
+          <span class="mobile-flow-nav__actions">
+            <button
+              type="button"
+              id="mobileAccessibilityMenuBtn"
+              aria-expanded="false"
+              aria-controls="accessibilityMenu"
+              aria-haspopup="dialog"
+            >无障碍</button>
             <button type="button" id="mobileOrdersBtn">订单</button>
+            <button type="button" id="mobileLogoutBtn">退出</button>
           </span>
         </nav>
       </div>
@@ -5886,7 +6002,16 @@ body.mode-large-text #accessibilityMenuBtn {
               <span><i class="legend__dot legend__dot--reserved"></i>已预订</span>
               <span><i class="legend__dot legend__dot--disabled"></i>维修 / 禁用</span>
             </div>
-            <div class="canvas-frame admin-canvas-frame">
+            <div class="admin-canvas-nav" id="adminCanvasNav" hidden aria-label="座位图移动控制">
+              <span>中厅和大厅可上下左右移动查看</span>
+              <div class="admin-canvas-nav__buttons" aria-label="座位图方向按钮">
+                <button class="admin-canvas-nav__button--up" type="button" data-admin-pan="up" aria-label="向上移动座位图">↑</button>
+                <button class="admin-canvas-nav__button--left" type="button" data-admin-pan="left" aria-label="向左移动座位图">←</button>
+                <button class="admin-canvas-nav__button--down" type="button" data-admin-pan="down" aria-label="向下移动座位图">↓</button>
+                <button class="admin-canvas-nav__button--right" type="button" data-admin-pan="right" aria-label="向右移动座位图">→</button>
+              </div>
+            </div>
+            <div class="canvas-frame admin-canvas-frame" id="adminCanvasFrame">
               <canvas id="adminSeatCanvas" width="920" height="610" aria-label="管理员座位管理图"></canvas>
             </div>
           </section>
@@ -5984,6 +6109,8 @@ const TICKET_TYPE_CONFIG = {
 const dom = {
   authScreen: document.getElementById("authScreen"),
   appScreen: document.getElementById("appScreen"),
+  authAccessibilityMenuBtn: document.getElementById("authAccessibilityMenuBtn"),
+  mobileAccessibilityMenuBtn: document.getElementById("mobileAccessibilityMenuBtn"),
   accessibilityMenuBtn: document.getElementById("accessibilityMenuBtn"),
   accessibilityMenu: document.getElementById("accessibilityMenu"),
   accessibilityMenuCloseBtn: document.getElementById("accessibilityMenuCloseBtn"),
@@ -6008,6 +6135,7 @@ const dom = {
   currentUserRole: document.getElementById("currentUserRole"),
   currentUserStatus: document.getElementById("currentUserStatus"),
   logoutBtn: document.getElementById("logoutBtn"),
+  mobileLogoutBtn: document.getElementById("mobileLogoutBtn"),
   selectionReadout: document.getElementById("selectionReadout"),
   adminNote: document.getElementById("adminNote"),
   ticketTypeSelect: document.getElementById("ticketTypeSelect"),
@@ -6059,6 +6187,9 @@ const dom = {
   adminSeatStatusSelect: document.getElementById("adminSeatStatusSelect"),
   adminResetHallBtn: document.getElementById("adminResetHallBtn"),
   adminSeatStatus: document.getElementById("adminSeatStatus"),
+  adminCanvasFrame: document.getElementById("adminCanvasFrame"),
+  adminCanvasNav: document.getElementById("adminCanvasNav"),
+  adminCanvasPanButtons: [...document.querySelectorAll("[data-admin-pan]")],
   adminCanvas: document.getElementById("adminSeatCanvas"),
   adminOrderSummary: document.getElementById("adminOrderSummary"),
   adminOrderList: document.getElementById("adminOrderList"),
@@ -6066,6 +6197,13 @@ const dom = {
   adminUserList: document.getElementById("adminUserList"),
   realtimeStatuses: [...document.querySelectorAll("[data-realtime-status]")]
 };
+
+const accessibilityMenuTriggers = [
+  dom.authAccessibilityMenuBtn,
+  dom.mobileAccessibilityMenuBtn,
+  dom.accessibilityMenuBtn
+].filter(Boolean);
+let activeAccessibilityMenuTrigger = dom.accessibilityMenuBtn;
 
 const ctx = dom.canvas.getContext("2d");
 const miniMapCtx = dom.seatMiniMap ? dom.seatMiniMap.getContext("2d") : null;
@@ -6107,10 +6245,12 @@ let seatCanvasLogicalSize = { width: 1200, height: 760 };
 let miniMapDragPointerId = null;
 let miniMapDragOffset = { x: SEAT_ZOOM_VIEW_SIZE / 2, y: SEAT_ZOOM_VIEW_SIZE / 2 };
 let adminRenderedSeats = [];
+let adminCanvasViewportHallId = "";
 
 bootstrap();
 
 function bootstrap() {
+  mountAccessibilityMenu();
   renderAuthSwitch("login");
   renderHallTabs();
   renderAdminHallTabs();
@@ -6136,6 +6276,7 @@ function bindEvents() {
   dom.loginForm.addEventListener("submit", handleLogin);
   dom.registerForm.addEventListener("submit", handleRegister);
   dom.logoutBtn.addEventListener("click", handleLogout);
+  dom.mobileLogoutBtn.addEventListener("click", handleLogout);
   dom.adminLogoutBtn.addEventListener("click", handleLogout);
   dom.canvas.addEventListener("mousedown", handleCanvasPointerDown);
   dom.canvas.addEventListener("mousemove", handleCanvasPointerMove);
@@ -6156,7 +6297,9 @@ function bindEvents() {
   dom.colorblindToggle.addEventListener("click", () => handleAccessibilityToggle("colorblindFriendly"));
   dom.voiceToggle.addEventListener("click", () => handleAccessibilityToggle("voicePrompt"));
   dom.voicePurchaseDemoBtn.addEventListener("click", handleVoicePurchaseDemo);
-  dom.accessibilityMenuBtn.addEventListener("click", handleAccessibilityMenuToggle);
+  accessibilityMenuTriggers.forEach((button) => {
+    button.addEventListener("click", handleAccessibilityMenuToggle);
+  });
   dom.accessibilityMenuCloseBtn.addEventListener("click", () => setAccessibilityMenuOpen(false, true));
   document.addEventListener("click", handleAccessibilityDocumentClick);
   document.addEventListener("keydown", handleAccessibilityDocumentKeyDown);
@@ -6166,6 +6309,9 @@ function bindEvents() {
   dom.purchaseOrderBtn.addEventListener("click", () => void handleCreateOrder(ORDER_STATUS.purchased));
   dom.orderList.addEventListener("click", handleOrderListAction);
   dom.adminCanvas.addEventListener("click", handleAdminSeatCanvasClick);
+  dom.adminCanvasPanButtons.forEach((button) => {
+    button.addEventListener("click", handleAdminCanvasPan);
+  });
   dom.adminOrderList.addEventListener("click", handleAdminOrderAction);
   dom.adminResetHallBtn.addEventListener("click", handleAdminResetHall);
   if (dom.heatVisibilityToggle) {
@@ -6187,6 +6333,9 @@ function bindEvents() {
   window.addEventListener("resize", () => {
     renderCurrentHall();
     renderAdminSeatCanvas();
+    if (!dom.accessibilityMenu.hidden) {
+      positionAccessibilityMenu(activeAccessibilityMenuTrigger);
+    }
   });
 }
 
@@ -6397,15 +6546,38 @@ function renderSeatCanvasForCurrentView() {
   renderSeatCanvas(hall, Boolean(currentUser && currentUser.role === "user"));
 }
 
-function handleAccessibilityMenuToggle() {
-  setAccessibilityMenuOpen(dom.accessibilityMenu.hidden);
+function mountAccessibilityMenu() {
+  const pageShell = document.querySelector(".page-shell");
+  if (pageShell && dom.accessibilityMenu.parentElement !== pageShell) {
+    pageShell.append(dom.accessibilityMenu);
+  }
+}
+
+function positionAccessibilityMenu(trigger) {
+  if (!trigger) {
+    return;
+  }
+
+  const rect = trigger.getBoundingClientRect();
+  const sideGap = window.matchMedia("(max-width: 720px)").matches ? 10 : 20;
+  const menuWidth = Math.min(560, window.innerWidth - sideGap * 2);
+  const left = clamp(rect.right - menuWidth, sideGap, window.innerWidth - menuWidth - sideGap);
+  const top = clamp(rect.bottom + 10, 10, Math.max(10, window.innerHeight - 160));
+  dom.accessibilityMenu.style.setProperty("--accessibility-menu-left", `${Math.round(left)}px`);
+  dom.accessibilityMenu.style.setProperty("--accessibility-menu-top", `${Math.round(top)}px`);
+}
+
+function handleAccessibilityMenuToggle(event) {
+  const trigger = event.currentTarget;
+  activeAccessibilityMenuTrigger = trigger;
+  setAccessibilityMenuOpen(dom.accessibilityMenu.hidden, false, trigger);
 }
 
 function handleAccessibilityDocumentClick(event) {
   if (
     dom.accessibilityMenu.hidden ||
     dom.accessibilityMenu.contains(event.target) ||
-    dom.accessibilityMenuBtn.contains(event.target)
+    accessibilityMenuTriggers.some((button) => button.contains(event.target))
   ) {
     return;
   }
@@ -6422,17 +6594,21 @@ function handleAccessibilityDocumentKeyDown(event) {
   setAccessibilityMenuOpen(false, true);
 }
 
-function setAccessibilityMenuOpen(isOpen, restoreFocus = false) {
+function setAccessibilityMenuOpen(isOpen, restoreFocus = false, trigger = activeAccessibilityMenuTrigger) {
+  if (trigger) {
+    activeAccessibilityMenuTrigger = trigger;
+  }
   dom.accessibilityMenu.hidden = !isOpen;
-  dom.accessibilityMenuBtn.setAttribute("aria-expanded", String(isOpen));
+  accessibilityMenuTriggers.forEach((button) => button.setAttribute("aria-expanded", String(isOpen)));
 
   if (isOpen) {
+    positionAccessibilityMenu(activeAccessibilityMenuTrigger);
     window.requestAnimationFrame(() => dom.accessibilityMenuCloseBtn.focus({ preventScroll: true }));
     return;
   }
 
-  if (restoreFocus) {
-    dom.accessibilityMenuBtn.focus({ preventScroll: true });
+  if (restoreFocus && activeAccessibilityMenuTrigger) {
+    activeAccessibilityMenuTrigger.focus({ preventScroll: true });
   }
 }
 
@@ -6810,11 +6986,13 @@ function renderAccessibilityState() {
   const hasActiveSettings = Boolean(
     activeModes.length || accessibilityState.voicePrompt
   );
-  dom.accessibilityMenuBtn.classList.toggle("has-active-setting", hasActiveSettings);
-  dom.accessibilityMenuBtn.setAttribute(
-    "aria-label",
-    hasActiveSettings ? "无障碍模式，已有设置开启" : "无障碍模式"
-  );
+  accessibilityMenuTriggers.forEach((button) => {
+    button.classList.toggle("has-active-setting", hasActiveSettings);
+    button.setAttribute(
+      "aria-label",
+      hasActiveSettings ? "无障碍模式，已有设置开启" : "无障碍模式"
+    );
+  });
 
   dom.accessibilityStatus.textContent = activeModes.length
     ? `已为你开启：${activeModes.join("、")}。语音提示${voiceLabel}。${voiceSupport}`
@@ -6945,6 +7123,7 @@ function handleRegister(event) {
 }
 
 function handleLogout() {
+  setAccessibilityMenuOpen(false);
   clearCurrentUser();
   resetAccessibilitySettings();
   selectedSeatKeys = [];
@@ -7069,8 +7248,12 @@ function renderAdminSeatCanvas() {
 
   const hall = state.halls[selectedHallId];
   const containerWidth = dom.adminCanvas.parentElement.clientWidth || 920;
-  const logicalWidth = Math.max(320, Math.min(920, containerWidth - 36));
-  const logicalHeight = 610;
+  const isMobilePannableHall = window.matchMedia("(max-width: 720px)").matches
+    && (hall.id === "medium" || hall.id === "large");
+  const logicalWidth = isMobilePannableHall
+    ? (hall.id === "large" ? 920 : 760)
+    : Math.max(320, Math.min(920, containerWidth - 36));
+  const logicalHeight = isMobilePannableHall ? 680 : 610;
   const pixelRatio = window.devicePixelRatio || 1;
   const palette = getSeatPalette();
   const marginX = logicalWidth < 480 ? 26 : 58;
@@ -7089,6 +7272,14 @@ function renderAdminSeatCanvas() {
   dom.adminCanvas.height = logicalHeight * pixelRatio;
   dom.adminCanvas.style.width = `${logicalWidth}px`;
   dom.adminCanvas.style.height = `${logicalHeight}px`;
+  if (dom.adminCanvasNav) {
+    dom.adminCanvasNav.hidden = !isMobilePannableHall;
+  }
+  if (dom.adminCanvasFrame && adminCanvasViewportHallId !== hall.id) {
+    dom.adminCanvasFrame.scrollLeft = 0;
+    dom.adminCanvasFrame.scrollTop = 0;
+  }
+  adminCanvasViewportHallId = hall.id;
   adminCtx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   adminCtx.clearRect(0, 0, logicalWidth, logicalHeight);
   adminCtx.fillStyle = "rgba(0, 8, 20, 0.46)";
@@ -7149,6 +7340,27 @@ function renderAdminSeatCanvas() {
         radius: seatRadius
       });
     }
+  }
+}
+
+function handleAdminCanvasPan(event) {
+  const frame = dom.adminCanvasFrame;
+  if (!frame) {
+    return;
+  }
+
+  const direction = event.currentTarget.dataset.adminPan;
+  const horizontalStep = Math.max(150, Math.round(frame.clientWidth * 0.62));
+  const verticalStep = Math.max(130, Math.round(frame.clientHeight * 0.56));
+  const movement = {
+    up: { top: -verticalStep, left: 0 },
+    down: { top: verticalStep, left: 0 },
+    left: { top: 0, left: -horizontalStep },
+    right: { top: 0, left: horizontalStep }
+  }[direction];
+
+  if (movement) {
+    frame.scrollBy({ ...movement, behavior: "smooth" });
   }
 }
 
@@ -9972,7 +10184,7 @@ function escapeHtml(value) {
   const app = document.getElementById("appScreen");
   const flowUi = document.getElementById("mobileFlowUi");
   const mobileQuery = window.matchMedia("(max-width: 720px)");
-  const flow = window.smartCinemaMobileFlow = { step: "seats", mode: "manual" };
+  const flow = window.smartCinemaMobileFlow = { step: "seats", mode: "info" };
 
   const canvasPanel = document.querySelector(".canvas-panel");
   const panelHeading = canvasPanel?.querySelector(":scope > .panel-heading");
@@ -10041,7 +10253,10 @@ function escapeHtml(value) {
   function syncRecommendationPanelLocation() {
     if (!recommendationPanel) return;
     if (isMobile()) {
-      recommendationDrawer.append(recommendationPanel);
+      // 输入过程中不要重复 append 同一个节点，否则会丢失焦点并收起手机键盘。
+      if (recommendationPanel.parentElement !== recommendationDrawer) {
+        recommendationDrawer.append(recommendationPanel);
+      }
       return;
     }
     if (recommendationHome.parent && recommendationPanel.parentElement !== recommendationHome.parent) {
@@ -10050,10 +10265,11 @@ function escapeHtml(value) {
   }
 
   function openRecommendationDrawer() {
-    flow.mode = "recommend";
+    flow.mode = "info";
     syncRecommendationPanelLocation();
     recommendationDrawer.hidden = false;
     document.body.style.overflow = "hidden";
+    syncDrawerToVisualViewport();
   }
 
   function closeRecommendationDrawer() {
@@ -10061,21 +10277,45 @@ function escapeHtml(value) {
     document.body.style.overflow = "";
   }
 
+  function syncDrawerToVisualViewport() {
+    if (!isMobile() || !window.visualViewport) {
+      return;
+    }
+
+    const viewport = window.visualViewport;
+    const keyboardOffset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+    app.style.setProperty("--mobile-keyboard-offset", `${Math.round(keyboardOffset)}px`);
+    app.style.setProperty("--mobile-drawer-height", `${Math.round(viewport.height)}px`);
+  }
+
+  function focusFirstIncompleteAudienceField() {
+    const firstIncomplete = [...dom.memberFields.querySelectorAll("input")]
+      .find((input) => !input.value.trim());
+    window.requestAnimationFrame(() => firstIncomplete?.focus({ preventScroll: true }));
+  }
+
+  function getMobileSelectionInfoCheck() {
+    recommendationDraft = readRecommendationDraftFromDOM();
+    return validateRecommendationDraft(recommendationDraft);
+  }
+
   function render() {
     const seatCount = selectedSeatKeys.length;
     const hall = state.halls[selectedHallId];
-    const ticketLabel = flow.mode === "manual"
-      ? "手动自由选座"
-      : TICKET_TYPE_CONFIG[recommendationDraft.ticketType]?.label || "智能推荐";
+    const selectionInfoCheck = getMobileSelectionInfoCheck();
+    const ticketLabel = TICKET_TYPE_CONFIG[recommendationDraft.ticketType]?.label || "未选择票型";
     const seatText = selectedSeatKeys.map(formatSeatLabel).join("、") || "未选择";
 
     app.dataset.mobileFlow = isMobile() ? flow.step : "desktop";
     flowUi.hidden = !isMobile();
     seatBar.hidden = !isMobile() || flow.step !== "seats";
     seatBar.querySelector("strong").textContent = seatCount ? `已选 ${seatCount} 座` : "尚未选择座位";
-    seatBar.querySelector("span").textContent = seatCount ? "连续点击座位可继续增减" : "选择座位后继续";
+    seatBar.querySelector("span").textContent = !selectionInfoCheck.valid
+      ? "请先填写完整选座信息"
+      : seatCount ? "连续点击座位可继续增减" : "选择座位后继续";
     seatBar.querySelector("button").disabled = seatCount === 0;
-    orderSummary.innerHTML = [["影厅", hall?.name || "-"], ["座位", seatText], ["票型", ticketLabel], ["人数", `${seatCount} 人`]]
+    seatBar.querySelector("button").textContent = selectionInfoCheck.valid ? "确认座位" : "填写选座信息";
+    orderSummary.innerHTML = [["影厅", hall?.name || "-"], ["座位", seatText], ["票型", ticketLabel], ["人数", selectionInfoCheck.valid ? `${selectionInfoCheck.draft.members.length} 人` : "待填写"]]
       .map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
     if (!isMobile()) closeRecommendationDrawer();
     syncRecommendationPanelLocation();
@@ -10086,7 +10326,7 @@ function escapeHtml(value) {
   showUserAppView = function () {
     originalShowUserAppView();
     flow.step = "seats";
-    flow.mode = "manual";
+    flow.mode = "info";
     render();
   };
 
@@ -10111,7 +10351,25 @@ function escapeHtml(value) {
   });
   document.getElementById("backToSeatsBtn").addEventListener("click", () => setStep("seats"));
   seatBar.querySelector("button").addEventListener("click", () => {
-    if (selectedSeatKeys.length) setStep("checkout");
+    if (!selectedSeatKeys.length) {
+      return;
+    }
+
+    const selectionInfoCheck = getMobileSelectionInfoCheck();
+    if (!selectionInfoCheck.valid) {
+      recommendationState = {
+        status: "error",
+        message: `确认座位前请先完成选座信息：${selectionInfoCheck.message}`,
+        summary: "填写票型和所有同行人的姓名、年龄后，即可确认座位。",
+        reasons: []
+      };
+      renderRecommendationState();
+      openRecommendationDrawer();
+      focusFirstIncompleteAudienceField();
+      return;
+    }
+
+    setStep("checkout");
   });
   document.getElementById("recommendBtn").addEventListener("click", () => {
     window.setTimeout(() => {
@@ -10122,7 +10380,20 @@ function escapeHtml(value) {
       }
     }, 0);
   });
+  recommendationDrawer.addEventListener("focusin", (event) => {
+    if (!isMobile() || !(event.target instanceof HTMLInputElement)) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      syncDrawerToVisualViewport();
+      event.target.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+    }, 120);
+  });
+  window.visualViewport?.addEventListener("resize", syncDrawerToVisualViewport);
+  window.visualViewport?.addEventListener("scroll", syncDrawerToVisualViewport);
   mobileQuery.addEventListener("change", render);
+  syncDrawerToVisualViewport();
   render();
 })();
 </script>

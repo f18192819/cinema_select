@@ -1332,14 +1332,19 @@ body.mode-high-contrast .admin-status {
   background: #ef4444;
 }
 
+.heat-legend__dot--super-hot {
+  color: #a855f7;
+  background: #a855f7;
+}
+
 .heat-legend__dot--normal {
-  color: #facc15;
-  background: #facc15;
+  color: #f97316;
+  background: #f97316;
 }
 
 .heat-legend__dot--cold {
-  color: #22c55e;
-  background: #22c55e;
+  color: #3b82f6;
+  background: #3b82f6;
 }
 
 .heat-source-stats {
@@ -4654,6 +4659,105 @@ body.mode-large-text .seat-map-sidebar .legend__title--ring {
   display: none !important;
 }
 
+.heat-trend-modal {
+  position: fixed;
+  z-index: 130;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.66);
+  backdrop-filter: blur(8px);
+}
+
+.heat-trend-modal[hidden] {
+  display: none;
+}
+
+.heat-trend-dialog {
+  width: min(760px, 100%);
+  max-height: min(680px, calc(100dvh - 40px));
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid rgba(210, 180, 119, 0.3);
+  border-radius: 20px;
+  background: linear-gradient(145deg, #191816, #0e0e0d);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.62);
+}
+
+.heat-trend-dialog__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.heat-trend-dialog__head h3 {
+  margin: 0;
+}
+
+.heat-trend-dialog__description,
+.heat-trend-dialog__hint {
+  margin: 14px 0 0;
+  color: var(--text-soft);
+  line-height: 1.65;
+}
+
+.heat-trend-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.heat-trend-day {
+  min-width: 0;
+  min-height: 150px;
+  padding: 12px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 13px;
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.035);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.heat-trend-day.is-active {
+  border-color: #d2b477;
+  background: rgba(210, 180, 119, 0.12);
+  box-shadow: 0 0 0 1px rgba(210, 180, 119, 0.16);
+}
+
+.heat-trend-day span,
+.heat-trend-day strong {
+  display: block;
+}
+
+.heat-trend-day__date {
+  color: var(--text-soft);
+  font-size: 0.7rem;
+}
+
+.heat-trend-day__score {
+  margin-top: 14px;
+  color: #ead5a7;
+  font: 800 1.1rem/1 Orbitron, sans-serif;
+}
+
+.heat-trend-day__count {
+  margin-top: 8px;
+  color: var(--text-soft);
+  font-size: 0.72rem;
+}
+
+@media (max-width: 720px) {
+  .heat-trend-modal { padding: 10px; }
+  .heat-trend-dialog { max-height: calc(100dvh - 20px); padding: 17px; border-radius: 16px; }
+  .heat-trend-week { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .heat-trend-day { min-height: 112px; }
+}
+
 .accessibility-panel--popover {
   margin: 0;
   padding: 22px;
@@ -5394,6 +5498,7 @@ body.mode-large-text #accessibilityMenuBtn {
 
   .mobile-seat-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: -4px 0 14px; }
   .mobile-seat-actions button { min-height: 42px; border: 1px solid rgba(210,180,119,0.26); border-radius: 10px; color: #ead5a7; background: rgba(255,255,255,0.035); font: inherit; }
+  .mobile-seat-actions button:nth-child(3) { grid-column: 1 / -1; }
 
   .mobile-recommend-drawer { position: fixed; z-index: 50; right: 0; bottom: var(--mobile-keyboard-offset, 0px); left: 0; max-height: min(82vh, calc(var(--mobile-drawer-height, 100dvh) - 12px)); padding: 16px 14px calc(16px + env(safe-area-inset-bottom)); overflow: auto; border: 1px solid rgba(210,180,119,0.3); border-radius: 20px 20px 0 0; background: #151412; box-shadow: 0 -20px 54px rgba(0,0,0,0.45); }
   .mobile-recommend-drawer[hidden] { display: none; }
@@ -5807,6 +5912,7 @@ body.mode-large-text #accessibilityMenuBtn {
             <div class="seat-view-tools">
               <span class="panel-heading__hint" id="seatViewHint">点击座位可手动调整</span>
               <span class="realtime-status" data-realtime-status aria-live="polite">多人实时同步已连接</span>
+              <button class="seat-view-mode" id="heatTrendBtn" type="button">显示热度·变化</button>
               <button class="seat-view-mode" id="seatViewModeBtn" type="button" hidden>切换全局视图</button>
             </div>
           </div>
@@ -5886,6 +5992,7 @@ body.mode-large-text #accessibilityMenuBtn {
                 <!-- 热度图例：外圈颜色含义（红热门/黄一般/绿冷门） -->
                 <div class="heat-legend" aria-label="热度图例">
                   <strong class="heat-legend__title">外围热度</strong>
+                  <span><i class="heat-legend__dot heat-legend__dot--super-hot"></i>超热门</span>
                   <span><i class="heat-legend__dot heat-legend__dot--hot"></i>热门</span>
                   <span><i class="heat-legend__dot heat-legend__dot--normal"></i>一般</span>
                   <span><i class="heat-legend__dot heat-legend__dot--cold"></i>冷门</span>
@@ -5896,6 +6003,21 @@ body.mode-large-text #accessibilityMenuBtn {
                 <p class="heat-panel__status" id="heatStatus"></p>
               </section>
             </aside>
+          </div>
+
+          <div class="heat-trend-modal" id="heatTrendModal" hidden>
+            <section class="heat-trend-dialog" role="dialog" aria-modal="true" aria-labelledby="heatTrendTitle">
+              <div class="heat-trend-dialog__head">
+                <div>
+                  <p class="panel-heading__tag">WEEKLY HEAT</p>
+                  <h3 id="heatTrendTitle">一周热度变化</h3>
+                </div>
+                <button class="accessibility-menu-close" id="heatTrendCloseBtn" type="button" aria-label="关闭热度变化窗口">×</button>
+              </div>
+              <p class="heat-trend-dialog__description" id="heatTrendDescription"></p>
+              <div class="heat-trend-week" id="heatTrendWeek" aria-live="polite"></div>
+              <p class="heat-trend-dialog__hint">点击某一天，可在当前座位图预览当天由购票记录形成的热度外圈。</p>
+            </section>
           </div>
 
           <section class="checkout-panel checkout-panel--inline">
@@ -6214,6 +6336,11 @@ const dom = {
   heatVisibilityToggle: document.getElementById("heatVisibilityToggle"),
   heatSourceStats: document.getElementById("heatSourceStats"),
   heatStatus: document.getElementById("heatStatus"),
+  heatTrendBtn: document.getElementById("heatTrendBtn"),
+  heatTrendModal: document.getElementById("heatTrendModal"),
+  heatTrendCloseBtn: document.getElementById("heatTrendCloseBtn"),
+  heatTrendDescription: document.getElementById("heatTrendDescription"),
+  heatTrendWeek: document.getElementById("heatTrendWeek"),
   seatViewHint: document.getElementById("seatViewHint"),
   seatViewModeBtn: document.getElementById("seatViewModeBtn"),
   seatOverview: document.getElementById("seatOverview"),
@@ -6278,6 +6405,7 @@ let experienceScoreState = createEmptyExperienceScoreState();
 let lastSelectionSignature = "";
 let accessibilityState = loadAccessibilityState();
 let isHeatVisible = true;
+let heatPreviewDateKey = null;
 const SEAT_ZOOM_VIEW_SIZE = 0.56;
 const seatViewModes = { small: "full", medium: "zoom", large: "zoom" };
 const seatViewports = {
@@ -6343,6 +6471,7 @@ function bindEvents() {
   dom.accessibilityMenuCloseBtn.addEventListener("click", () => setAccessibilityMenuOpen(false, true));
   document.addEventListener("click", handleAccessibilityDocumentClick);
   document.addEventListener("keydown", handleAccessibilityDocumentKeyDown);
+  document.addEventListener("keydown", handleHeatTrendDocumentKeyDown);
   dom.viewOrdersBtn.addEventListener("click", handleOpenOrderPage);
   dom.backToSeatsBtn.addEventListener("click", handleReturnToMainPage);
   dom.reserveOrderBtn.addEventListener("click", () => void handleCreateOrder(ORDER_STATUS.reserved));
@@ -6357,6 +6486,14 @@ function bindEvents() {
   if (dom.heatVisibilityToggle) {
     dom.heatVisibilityToggle.addEventListener("change", handleHeatVisibilityChange);
   }
+  dom.heatTrendBtn.addEventListener("click", openHeatTrendModal);
+  dom.heatTrendCloseBtn.addEventListener("click", closeHeatTrendModal);
+  dom.heatTrendModal.addEventListener("click", (event) => {
+    if (event.target === dom.heatTrendModal) {
+      closeHeatTrendModal();
+    }
+  });
+  dom.heatTrendWeek.addEventListener("click", handleHeatTrendDayClick);
   if (dom.seatViewModeBtn) {
     dom.seatViewModeBtn.addEventListener("click", handleSeatViewModeToggle);
   }
@@ -6752,9 +6889,13 @@ async function handleCreateOrder(statusCode) {
 
     const ticketConfig = TICKET_TYPE_CONFIG[validation.draft.ticketType];
     const seatKeys = selectedSeats.map((seat) => `${seat.row}-${seat.number}`);
+    const createdAt = new Date().toISOString();
     const seatStatus = statusCode === ORDER_STATUS.reserved ? "reserved" : "sold";
     selectedSeats.forEach((seat) => {
       seat.status = seatStatus;
+      if (statusCode === ORDER_STATUS.purchased) {
+        seat.purchasedAt = createdAt;
+      }
     });
 
     const order = {
@@ -6772,7 +6913,9 @@ async function handleCreateOrder(statusCode) {
       members: validation.draft.members.map((member) => ({ ...member })),
       statusCode,
       status: getOrderStatusLabel(statusCode),
-      createdAt: new Date().toISOString()
+      createdAt,
+      // The purchase timestamp is used by the weekly heat trend. Reservations do not count as purchase history.
+      purchasedAt: statusCode === ORDER_STATUS.purchased ? createdAt : null
     };
 
     state.orders.unshift(order);
@@ -7334,6 +7477,9 @@ function renderCurrentHall() {
   renderHeatPanel(hall);
   renderSeatViewControls(hall);
   renderSeatCanvas(hall, Boolean(currentUser && currentUser.role === "user"));
+  if (dom.heatTrendModal && !dom.heatTrendModal.hidden) {
+    renderHeatTrendModal();
+  }
 }
 
 function renderAdminDashboard() {
@@ -7527,6 +7673,11 @@ function handleAdminSeatCanvasClick(event) {
 
   closeConflictingOrdersForAdminSeat(hall, hitSeat.key, nextStatus);
   seat.status = nextStatus;
+  if (nextStatus === "sold") {
+    seat.purchasedAt = new Date().toISOString();
+  } else {
+    delete seat.purchasedAt;
+  }
   selectedSeatKeys = selectedSeatKeys.filter((seatKey) => seatKey !== hitSeat.key);
   recommendedSeatKeys = recommendedSeatKeys.filter((seatKey) => seatKey !== hitSeat.key);
   saveState();
@@ -7680,7 +7831,7 @@ function renderHeatPanel(hall) {
     return;
   }
 
-  const heatSources = getHeatSourceSeats(hall);
+  const heatSources = getHeatSourceSeats(hall, heatPreviewDateKey);
   const reservedCount = heatSources.filter((source) => source.weight === 55).length;
   const purchasedCount = heatSources.filter((source) => source.weight === 80).length;
 
@@ -7695,9 +7846,90 @@ function renderHeatPanel(hall) {
       <strong>${purchasedCount} 个</strong>
     </article>
   `;
+  const previewLabel = heatPreviewDateKey
+    ? `当前已售座位及 ${formatHeatDateKey(heatPreviewDateKey)} 的购票`
+    : "已预订或已购票";
   dom.heatStatus.textContent = heatSources.length
-    ? `${hall.name}有 ${heatSources.length} 个已预订或已购票座位；外围热度会参考它们，并向相邻 ${HEAT_RADIUS} 个座位逐渐减弱。`
-    : "这里还没有预订或购票记录；产生记录后，外围热度会随之显示。";
+    ? `${hall.name}有 ${heatSources.length} 个${previewLabel}热源座位；外围热度会参考它们，并向相邻 ${HEAT_RADIUS} 个座位逐渐减弱。`
+    : heatPreviewDateKey
+      ? `${formatHeatDateKey(heatPreviewDateKey)} 暂无${hall.name}的购票记录，座位图正在显示冷门边框。`
+      : "这里还没有预订或购票记录；产生记录后，外围热度会随之显示。";
+}
+
+function formatHeatDateKey(dateKey) {
+  const [, , month = "", day = ""] = String(dateKey).match(/^(\d{4})-(\d{2})-(\d{2})$/) || [];
+  return month && day ? `${Number(month)}月${Number(day)}日` : "所选日期";
+}
+
+function renderHeatTrendModal() {
+  const hall = state.halls[selectedHallId];
+  if (!hall || !dom.heatTrendDescription || !dom.heatTrendWeek) {
+    return;
+  }
+
+  const weeklyData = getWeeklyHeatData(hall);
+  const firstDay = weeklyData[0];
+  const lastDay = weeklyData[weeklyData.length - 1];
+  const hasPurchases = weeklyData.some((day) => day.seatCount > 0);
+  dom.heatTrendDescription.textContent = hasPurchases
+    ? `${hall.name} · ${formatHeatDateKey(firstDay.key)}至${formatHeatDateKey(lastDay.key)}。所有当前已售座位每天都会按距离扩散规则参与计算；所选日期的购票订单会被单独统计。重复座位只保留一个热源，避免重复叠加。`
+    : `${hall.name} · ${formatHeatDateKey(firstDay.key)}至${formatHeatDateKey(lastDay.key)}。本周尚无已购票记录；之后每次购买都会按购票日期写入热度变化。`;
+
+  dom.heatTrendWeek.innerHTML = weeklyData.map((day) => {
+    const isActive = day.key === heatPreviewDateKey;
+    const scoreColor = getHeatBorderColor(day.heatScore);
+    return `
+      <button class="heat-trend-day${isActive ? " is-active" : ""}" type="button" data-heat-date="${day.key}" aria-pressed="${isActive}">
+        <span>${day.label}</span>
+        <span class="heat-trend-day__date">${formatHeatDateKey(day.key)}</span>
+        <strong class="heat-trend-day__score" style="color:${scoreColor}">均热 ${day.heatScore} / 100</strong>
+        <span class="heat-trend-day__count">当前已售热源 ${day.seatCount} 个 · 升温座 ${day.warmedSeatCount} 个</span>
+        <span class="heat-trend-day__count">当天购票 ${day.dailyPurchaseSeatCount} 座 · ${day.orderCount} 笔订单</span>
+      </button>
+    `;
+  }).join("");
+}
+
+function openHeatTrendModal() {
+  if (!dom.heatTrendModal) {
+    return;
+  }
+
+  dom.heatTrendModal.hidden = false;
+  renderHeatTrendModal();
+  window.requestAnimationFrame(() => dom.heatTrendCloseBtn?.focus({ preventScroll: true }));
+}
+
+function closeHeatTrendModal() {
+  if (!dom.heatTrendModal || dom.heatTrendModal.hidden) {
+    return;
+  }
+
+  dom.heatTrendModal.hidden = true;
+  heatPreviewDateKey = null;
+  renderCurrentHall();
+  window.requestAnimationFrame(() => dom.heatTrendBtn?.focus({ preventScroll: true }));
+}
+
+function handleHeatTrendDayClick(event) {
+  const button = event.target.closest("[data-heat-date]");
+  if (!button) {
+    return;
+  }
+
+  heatPreviewDateKey = button.dataset.heatDate || null;
+  // Reuse the main Canvas for the selected day's preview, rather than placing a second heat map in the dialog.
+  dom.heatTrendModal.hidden = true;
+  renderCurrentHall();
+  window.requestAnimationFrame(() => {
+    dom.canvas?.closest(".canvas-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
+function handleHeatTrendDocumentKeyDown(event) {
+  if (event.key === "Escape" && dom.heatTrendModal && !dom.heatTrendModal.hidden) {
+    closeHeatTrendModal();
+  }
 }
 
 function buildSelectionSummary() {
@@ -7797,13 +8029,13 @@ function getSeatColumn(seat) {
 }
 
 /**
- * 把热度分数(0~100)映射成外圈颜色：≥55 红(热门)、≥25 黄(一般)、其余绿(冷门)。
- * 阈值与 getHeatInfluenceByDistance 的分档对应。
+ * Heat is expressed only by the outer border. A date without purchase sources must stay blue.
  */
 function getHeatBorderColor(score) {
-  if (score >= 55) return "#ef4444";
-  if (score >= 25) return "#facc15";
-  return "#22c55e";
+  if (score >= 80) return "#a855f7"; // 超热门
+  if (score >= 55) return "#ef4444"; // 热门
+  if (score >= 25) return "#f97316"; // 一般热度
+  return "#3b82f6"; // 冷门
 }
 
 /**
@@ -7963,6 +8195,74 @@ function getOrderHeatWeight(order) {
   return statuses.some((status) => reservedStatuses.includes(status)) ? 55 : 0;
 }
 
+const WEEKDAY_LABELS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+
+function getLocalDateKey(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getOrderPurchaseDateKey(order) {
+  // Older purchased orders did not have purchasedAt, so retain their history through createdAt.
+  return getOrderHeatWeight(order) >= 80
+    ? getLocalDateKey(order.purchasedAt || order.createdAt)
+    : "";
+}
+
+function getCurrentWeekDates() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const mondayOffset = (today.getDay() + 6) % 7;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - mondayOffset);
+
+  return WEEKDAY_LABELS.map((label, index) => {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + index);
+    return { date, key: getLocalDateKey(date), label };
+  });
+}
+
+function getWeeklyHeatData(hall) {
+  const seatMap = buildSeatMap(hall);
+  const paidOrders = getValidOrdersForHeat()
+    .filter((order) => doesOrderMatchHall(order, hall) && getOrderHeatWeight(order) >= 80);
+
+  return getCurrentWeekDates().map((day) => {
+    const orders = paidOrders.filter((order) => getOrderPurchaseDateKey(order) === day.key);
+    const dailyPurchaseSeatIds = new Set(
+      orders
+        .flatMap(getOrderSeatEntries)
+        .map(normalizeSeatId)
+        .filter((seatId) => seatId && seatMap.has(seatId))
+    );
+    const heatSources = getHeatSourceSeats(hall, day.key);
+    const seatScores = hall.seats.map((seat) => calculateSeatHeat(seat, hall, heatSources));
+    const influencedScores = seatScores.filter((score) => score > 0);
+
+    return {
+      ...day,
+      orderCount: orders.length,
+      // Canvas de-duplicates status and order heat sources, while the card still exposes that day's purchases.
+      seatCount: heatSources.filter((source) => source.weight >= 80).length,
+      dailyPurchaseSeatCount: dailyPurchaseSeatIds.size,
+      // The weekly card reuses the same diffusion result as Canvas, not a ticket-count ratio.
+      heatScore: influencedScores.length
+        ? Math.round(influencedScores.reduce((total, score) => total + score, 0) / influencedScores.length)
+        : 0,
+      peakScore: seatScores.length ? Math.max(...seatScores) : 0,
+      warmedSeatCount: seatScores.filter((score) => score >= 25).length
+    };
+  });
+}
+
 /**
  * 判断订单是否属于当前影厅（按 hallId/hallName 等多字段比对，大小写无关）。
    订单没有影厅信息时视为匹配（保守地把它的热度算进来）。
@@ -8016,7 +8316,7 @@ function getSeatHeatWeight(status) {
    同一座位取最大权重（购票优先于预订），返回 [{row,col,weight}]。
    这是 calculateSeatHeat 的输入。
  */
-function getHeatSourceSeats(hall) {
+function getHeatSourceSeats(hall, dateKey = heatPreviewDateKey) {
   const seatMap = buildSeatMap(hall);
   const sourceWeights = new Map();
 
@@ -8030,6 +8330,7 @@ function getHeatSourceSeats(hall) {
 
   getValidOrdersForHeat()
     .filter((order) => doesOrderMatchHall(order, hall))
+    .filter((order) => !dateKey || getOrderPurchaseDateKey(order) === dateKey)
     .forEach((order) => {
       const weight = getOrderHeatWeight(order);
       getOrderSeatEntries(order).forEach((entry) => {
@@ -9733,11 +10034,48 @@ function normalizeState(savedState) {
       };
     })
     : [];
+  const purchaseTimeBySeat = new Map();
+  normalizedOrders
+    .filter((order) => getOrderHeatWeight(order) >= 80 && order.hallId)
+    .forEach((order) => {
+      const purchasedAt = order.purchasedAt || order.createdAt;
+      getOrderSeatEntries(order).forEach((entry) => {
+        const seatId = normalizeSeatId(entry);
+        if (seatId && purchasedAt) {
+          purchaseTimeBySeat.set(`${order.hallId}:${seatId}`, purchasedAt);
+        }
+      });
+    });
+  const normalizedHalls = Object.fromEntries(
+    Object.entries(savedState.halls || {}).map(([hallId, hall]) => [
+      hallId,
+      {
+        ...hall,
+        seats: Array.isArray(hall.seats)
+          ? hall.seats.map((seat) => {
+            const seatId = normalizeSeatId(seat);
+            const isSold = getSeatHeatWeight(seat.status) >= 80;
+            if (!isSold || seat.purchasedAt) {
+              return seat;
+            }
+
+            return {
+              ...seat,
+              // Backfill old demonstration sold seats so historical heat does not lose its source date.
+              purchasedAt: purchaseTimeBySeat.get(`${hallId}:${seatId}`)
+                || getDemoSeatPurchasedAt(seat.row, seat.number, hallId)
+            };
+          })
+          : []
+      }
+    ])
+  );
 
   return {
     ...savedState,
     users: Array.isArray(savedState.users) ? savedState.users.map(normalizeUser) : [],
-    orders: normalizedOrders
+    orders: normalizedOrders,
+    halls: normalizedHalls
   };
 }
 
@@ -10238,16 +10576,32 @@ function buildSeats(rows, seatsPerRow, hallId) {
   for (let row = 1; row <= rows; row += 1) {
     for (let number = 1; number <= seatsPerRow; number += 1) {
       const key = `${row}-${number}`; // 座位唯一标识："排号-座号"，全项目用它定位座位
+      const isSold = soldPattern.has(key);
       seats.push({
         row,
         number,
         // 命中预设图案的记为已售，其余为空座
-        status: soldPattern.has(key) ? "sold" : "available"
+        status: isSold ? "sold" : "available",
+        // Demonstration sold seats are assigned a deterministic day in the current week for the weekly heat preview.
+        purchasedAt: isSold ? getDemoSeatPurchasedAt(row, number, hallId) : null
       });
     }
   }
 
   return seats;
+}
+
+function getDemoSeatPurchasedAt(row, number, hallId) {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const mondayOffset = (today.getDay() + 6) % 7;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - mondayOffset);
+  const hallSeed = String(hallId).split("").reduce((total, char) => total + char.charCodeAt(0), 0);
+  const dayOffset = Math.abs(row * 37 + number * 17 + hallSeed) % 7;
+  const purchaseDate = new Date(monday);
+  purchaseDate.setDate(monday.getDate() + dayOffset);
+  return purchaseDate.toISOString();
 }
 
 /**
@@ -10295,7 +10649,7 @@ function escapeHtml(value) {
 
   const mobileSeatActions = document.createElement("div");
   mobileSeatActions.className = "mobile-seat-actions mobile-flow-ui";
-  mobileSeatActions.innerHTML = '<button type="button">选座信息</button><button type="button">热度 / 图例</button>';
+  mobileSeatActions.innerHTML = '<button type="button">选座信息</button><button type="button">热度 / 图例</button><button type="button">显示热度·变化</button>';
   mobileHallTabs.after(mobileSeatActions);
 
   const recommendationPanel = document.querySelector(".recommend-panel");
@@ -10336,6 +10690,15 @@ function escapeHtml(value) {
     section.before(details);
     details.append(summary, section);
   });
+
+  const seatSidebarDetails = [...document.querySelectorAll(".seat-map-sidebar details")];
+
+  function syncSeatSidebarDetails() {
+    // The same markup is collapsible on mobile, but always expanded in the desktop sidebar.
+    seatSidebarDetails.forEach((details) => {
+      details.open = !isMobile();
+    });
+  }
 
   function isMobile() {
     return mobileQuery.matches;
@@ -10474,12 +10837,13 @@ function escapeHtml(value) {
 
   mobileSeatActions.querySelectorAll("button")[0].addEventListener("click", openRecommendationDrawer);
   mobileSeatActions.querySelectorAll("button")[1].addEventListener("click", () => {
-    const heatDetails = [...document.querySelectorAll(".seat-map-sidebar details")][1];
+    const heatDetails = seatSidebarDetails[1];
     if (heatDetails) {
       heatDetails.open = !heatDetails.open;
       heatDetails.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   });
+  mobileSeatActions.querySelectorAll("button")[2].addEventListener("click", openHeatTrendModal);
   recommendationDrawer.querySelector("button").addEventListener("click", closeRecommendationDrawer);
   document.getElementById("mobileOrdersBtn").addEventListener("click", () => {
     flowUi.hidden = true;
@@ -10542,8 +10906,12 @@ function escapeHtml(value) {
   });
   window.visualViewport?.addEventListener("resize", syncDrawerToVisualViewport);
   window.visualViewport?.addEventListener("scroll", syncDrawerToVisualViewport);
-  mobileQuery.addEventListener("change", render);
+  mobileQuery.addEventListener("change", () => {
+    syncSeatSidebarDetails();
+    render();
+  });
   syncDrawerToVisualViewport();
+  syncSeatSidebarDetails();
   render();
 })();
 </script>

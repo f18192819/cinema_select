@@ -69,7 +69,7 @@ big_homework/
      单座热度 → calculateSeatHeat()；外圈颜色 → getHeatBorderColor()。
      "用 Map 去重"指 getHeatSourceSeats 里同一座位取最大权重。 -->
 
-热度来源为已售、已购票和已预订座位。系统先用 `Map` 为热源去重，再按距离分段累计影响，最后只用座位外圈的颜色和微弱发光显示热度，避免覆盖座位实际状态。
+热度来源为已售、已购票和已预订座位。系统先用 `Map` 为热源去重，再按距离分段累计影响，最后只用座位外圈的颜色和微弱发光显示热度，避免覆盖座位实际状态。购买订单会额外写入 `purchasedAt`；一周视图中，所有当前已售座位都会作为基础热源，所选日期的订单会单独统计。选座页的“显示热度·变化”逐日复用相同的距离扩散结果计算区域均热，并可点击某日让同一张 Canvas 预览对应热度边框。
 
 ### 7. 无障碍和响应式作为全局能力
 
@@ -101,7 +101,7 @@ big_homework/
 <!-- 组员2负责模块对照表：下面"模块2 手动选座"和"模块3 热度地图"两行
      列出了你负责部分的核心函数名，可在 app.js 里直接搜索跳转。 -->
 | 模块 2：手动选座 | `handleCanvasClick()`、`handleCanvasPointerDown()`、`handleCanvasPointerMove()`、`handleCanvasPointerUp()` | 桌面端支持单选、`Ctrl` 多选与拖拽框选；手机端连续点击可多选，再次点击可取消，推荐后仍可手动修改。 |
-| 模块 3：影院热度地图 | `getHeatSourceSeats()`、`getHeatInfluenceByDistance()`、`calculateSeatHeat()`、`getHeatBorderColor()`、`renderHeatPanel()`；Canvas 的 `drawSeats()` | 热度由预订/购票/已售座位按距离分段扩散并累加，只绘制外圈边框。当前版本不包含作业说明中的“一周播放动画”。 |
+| 模块 3：影院热度地图 | `getHeatSourceSeats()`、`getHeatInfluenceByDistance()`、`calculateSeatHeat()`、`getHeatBorderColor()`、`renderHeatPanel()`、`getWeeklyHeatData()`、`renderHeatTrendModal()`；Canvas 的 `drawSeats()` | 热度由预订/购票/已售座位按距离分段扩散并累加，只绘制外圈边框；购票记录按 `purchasedAt` 统计，可在“显示热度·变化”窗口中查看并预览本周每日热度。 |
 | 模块 4：观影体验评分 | `updateExperienceScore()`、`calculateSystemExperienceScore()`、`getOrderScoreSummary()`、`calculateCompositeScore()`、`renderExperienceScoreState()` | 选座页仅显示座位参考分、等级和理由；已购票订单由用户评分后显示订单专属综合结果。 |
 | 模块 5：无障碍模式 | `handleAccessibilityToggle()`、`resetAccessibilitySettings()`、`applyAccessibilitySettings()`、`renderAccessibilityState()`、`speakMessage()`；`style.css` 的 `mode-large-text`、`mode-high-contrast`、`mode-colorblind` | 支持大字体、高对比度、色盲友好和 SpeechSynthesis 语音提示；退出登录时恢复默认配置。 |
 | 模块 6：订单中心 | `handleCreateOrder()`、`validateOrderSelection()`、`handleOrderListAction()`、`updateOrderStatus()`、`renderOrderCenter()` | 支持预订、取消预订、购票、退票和已购票订单 1–5 星评分；订单状态会同步更新座位。 |
@@ -118,7 +118,7 @@ big_homework/
 | LocalStorage 数据保存 | 已完成 |
 | PC、平板、手机响应式布局 | 已完成：桌面保留完整工作台；手机端使用座位图优先、抽屉式推荐和固定确认栏。 |
 | AI 问答式观影顾问 | 未单独实现；当前为表单式智能推荐 |
-| 一周热度变化播放 | 未实现；当前为订单/座位状态实时热度扩散 |
+| 一周热度变化 | 已完成查看与按日预览：在“显示热度·变化”中查看当前影厅一周内每天的购票热度，点击日期即可在现有 Canvas 预览对应热度边框 |
 | WebSocket 多人实时更新 | 已完成：`server.js` 提供零依赖 WebSocket 服务；跨浏览器/设备访问同一服务地址即可实时同步，未启动服务时保留本地同步降级。 |
 
 ## 验证建议

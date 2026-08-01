@@ -6232,6 +6232,7 @@ const ORDER_STATUS = {
   refunded: "refunded"
 };
 const HEAT_RADIUS = 3;
+const DAILY_SEAT_STATE_SEED_VERSION = "daily-seat-state-v2";
 
 const hallsConfig = [
   { id: "small", name: "\u5c0f\u5385", rows: 10, seatsPerRow: 10 },
@@ -6849,6 +6850,33 @@ function setUserSubpage(pageName, shouldFocus = true) {
 }
 
 
+function getOrderDateRestrictionMessage() {
+  if (!heatPreviewDateKey) {
+    return "";
+  }
+
+  const todayKey = getLocalDateKey(new Date());
+  if (heatPreviewDateKey === todayKey) {
+    return "";
+  }
+
+  const dateType = heatPreviewDateKey < todayKey ? "过去日期" : "未来日期";
+  return `当前查看的是 ${formatHeatDateKey(heatPreviewDateKey)}（${dateType}），仅可查看热度；每天只能预订或购买当天的票。请切换到 ${formatHeatDateKey(todayKey)}。`;
+}
+
+function renderOrderDateAvailability() {
+  const restrictionMessage = getOrderDateRestrictionMessage();
+  const isRestricted = Boolean(restrictionMessage);
+  [dom.reserveOrderBtn, dom.purchaseOrderBtn].forEach((button) => {
+    if (!button) {
+      return;
+    }
+    button.disabled = isRestricted;
+    button.title = restrictionMessage;
+    button.setAttribute("aria-disabled", String(isRestricted));
+  });
+}
+
 async function handleCreateOrder(statusCode) {
   const currentUser = getCurrentUser();
   if (!currentUser) {
@@ -6858,6 +6886,12 @@ async function handleCreateOrder(statusCode) {
 
   if (!isNormalUser()) {
     setOrderStatus("管理员账号仅可管理影院数据，不能创建用户订单。", "error");
+    return;
+  }
+
+  const dateRestrictionMessage = getOrderDateRestrictionMessage();
+  if (dateRestrictionMessage) {
+    setOrderStatus(dateRestrictionMessage, "error");
     return;
   }
 
@@ -6875,6 +6909,10 @@ async function handleCreateOrder(statusCode) {
 
   const result = await runSeatStateTransaction(() => {
     const freshUser = getCurrentUser();
+    const transactionDateRestrictionMessage = getOrderDateRestrictionMessage();
+    if (transactionDateRestrictionMessage) {
+      return { success: false, message: transactionDateRestrictionMessage };
+    }
     const hall = state.halls[selectedHallId];
     const selectedSeats = hall
       ? selectedSeatKeys.map((seatKey) => findSeatByKey(hall, seatKey)).filter(Boolean)
@@ -6895,6 +6933,10 @@ async function handleCreateOrder(statusCode) {
       seat.status = seatStatus;
       if (statusCode === ORDER_STATUS.purchased) {
         seat.purchasedAt = createdAt;
+        delete seat.reservedAt;
+      } else {
+        seat.reservedAt = createdAt;
+        delete seat.purchasedAt;
       }
     });
 
@@ -7051,6 +7093,8 @@ function updateOrderStatus(order, nextStatusCode) {
       const seat = findSeatByKey(hall, seatKey);
       if (seat && seat.status === expectedSeatStatus) {
         seat.status = "available";
+        delete seat.purchasedAt;
+        delete seat.reservedAt;
       }
     });
   }
@@ -7474,6 +7518,7 @@ function renderCurrentHall() {
   dom.selectionReadout.classList.toggle("is-recommended-selection", recommendationIsSelected);
   dom.adminNote.hidden = true;
   updateExperienceScore(hall);
+  renderOrderDateAvailability();
   renderHeatPanel(hall);
   renderSeatViewControls(hall);
   renderSeatCanvas(hall, Boolean(currentUser && currentUser.role === "user"));
@@ -7672,11 +7717,17 @@ function handleAdminSeatCanvasClick(event) {
   }
 
   closeConflictingOrdersForAdminSeat(hall, hitSeat.key, nextStatus);
+  const statusChangedAt = new Date().toISOString();
   seat.status = nextStatus;
   if (nextStatus === "sold") {
-    seat.purchasedAt = new Date().toISOString();
+    seat.purchasedAt = statusChangedAt;
   } else {
     delete seat.purchasedAt;
+  }
+  if (nextStatus === "reserved") {
+    seat.reservedAt = statusChangedAt;
+  } else {
+    delete seat.reservedAt;
   }
   selectedSeatKeys = selectedSeatKeys.filter((seatKey) => seatKey !== hitSeat.key);
   recommendedSeatKeys = recommendedSeatKeys.filter((seatKey) => seatKey !== hitSeat.key);
@@ -7838,21 +7889,21 @@ function renderHeatPanel(hall) {
   dom.heatVisibilityToggle.checked = isHeatVisible;
   dom.heatSourceStats.innerHTML = `
     <article class="heat-source-stat">
-      <span>附近已预订</span>
+      <span>一般热源</span>
       <strong>${reservedCount} 个</strong>
     </article>
     <article class="heat-source-stat">
-      <span>附近已购票</span>
+      <span>高强度热源</span>
       <strong>${purchasedCount} 个</strong>
     </article>
   `;
   const previewLabel = heatPreviewDateKey
-    ? `当前已售座位及 ${formatHeatDateKey(heatPreviewDateKey)} 的购票`
+    ? `${formatHeatDateKey(heatPreviewDateKey)} 的初始化与当天状态`
     : "已预订或已购票";
   dom.heatStatus.textContent = heatSources.length
     ? `${hall.name}有 ${heatSources.length} 个${previewLabel}热源座位；外围热度会参考它们，并向相邻 ${HEAT_RADIUS} 个座位逐渐减弱。`
     : heatPreviewDateKey
-      ? `${formatHeatDateKey(heatPreviewDateKey)} 暂无${hall.name}的购票记录，座位图正在显示冷门边框。`
+      ? `${formatHeatDateKey(heatPreviewDateKey)} 的${hall.name}正在显示独立初始化热度；当天预订、购票和维护状态会统一参与计算。`
       : "这里还没有预订或购票记录；产生记录后，外围热度会随之显示。";
 }
 
@@ -7870,20 +7921,23 @@ function renderHeatTrendModal() {
   const weeklyData = getWeeklyHeatData(hall);
   const firstDay = weeklyData[0];
   const lastDay = weeklyData[weeklyData.length - 1];
-  const hasPurchases = weeklyData.some((day) => day.seatCount > 0);
+  const hasPurchases = weeklyData.some((day) => day.dailyPurchaseSeatCount > 0);
   dom.heatTrendDescription.textContent = hasPurchases
-    ? `${hall.name} · ${formatHeatDateKey(firstDay.key)}至${formatHeatDateKey(lastDay.key)}。所有当前已售座位每天都会按距离扩散规则参与计算；所选日期的购票订单会被单独统计。重复座位只保留一个热源，避免重复叠加。`
-    : `${hall.name} · ${formatHeatDateKey(firstDay.key)}至${formatHeatDateKey(lastDay.key)}。本周尚无已购票记录；之后每次购买都会按购票日期写入热度变化。`;
+    ? `${hall.name} · ${formatHeatDateKey(firstDay.key)}至${formatHeatDateKey(lastDay.key)}。每天先初始化座位状态，再与当天预订、购票和维护状态一起严格按热度算法计算；其他日期不会被连带修改。`
+    : `${hall.name} · ${formatHeatDateKey(firstDay.key)}至${formatHeatDateKey(lastDay.key)}。每天已生成独立座位状态，并统一按状态权重、距离衰减和累加规则计算热度。`;
 
+  const todayKey = getLocalDateKey(new Date());
   dom.heatTrendWeek.innerHTML = weeklyData.map((day) => {
+    const canPurchaseToday = day.key === todayKey;
     const isActive = day.key === heatPreviewDateKey;
     const scoreColor = getHeatBorderColor(day.heatScore);
     return `
       <button class="heat-trend-day${isActive ? " is-active" : ""}" type="button" data-heat-date="${day.key}" aria-pressed="${isActive}">
+        <span class="heat-trend-day__count">${canPurchaseToday ? "今日可购票" : "仅查看热度"}</span>
         <span>${day.label}</span>
         <span class="heat-trend-day__date">${formatHeatDateKey(day.key)}</span>
         <strong class="heat-trend-day__score" style="color:${scoreColor}">均热 ${day.heatScore} / 100</strong>
-        <span class="heat-trend-day__count">当前已售热源 ${day.seatCount} 个 · 升温座 ${day.warmedSeatCount} 个</span>
+        <span class="heat-trend-day__count">当日热源 ${day.seatCount} 个 · 升温座 ${day.warmedSeatCount} 个</span>
         <span class="heat-trend-day__count">当天购票 ${day.dailyPurchaseSeatCount} 座 · ${day.orderCount} 笔订单</span>
       </button>
     `;
@@ -7905,9 +7959,13 @@ function closeHeatTrendModal() {
     return;
   }
 
+  const shouldClearDateRestriction = Boolean(getOrderDateRestrictionMessage());
   dom.heatTrendModal.hidden = true;
   heatPreviewDateKey = null;
   renderCurrentHall();
+  if (shouldClearDateRestriction) {
+    resetOrderStatus();
+  }
   window.requestAnimationFrame(() => dom.heatTrendBtn?.focus({ preventScroll: true }));
 }
 
@@ -7918,9 +7976,14 @@ function handleHeatTrendDayClick(event) {
   }
 
   heatPreviewDateKey = button.dataset.heatDate || null;
+  const restrictionMessage = getOrderDateRestrictionMessage();
   // Reuse the main Canvas for the selected day's preview, rather than placing a second heat map in the dialog.
   dom.heatTrendModal.hidden = true;
   renderCurrentHall();
+  setOrderStatus(
+    restrictionMessage || "当前查看的是今天的热度，可以正常预订或购票。",
+    restrictionMessage ? "error" : "success"
+  );
   window.requestAnimationFrame(() => {
     dom.canvas?.closest(".canvas-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
@@ -8216,18 +8279,98 @@ function getOrderPurchaseDateKey(order) {
     : "";
 }
 
+function getOrderHeatDateKey(order) {
+  const weight = getOrderHeatWeight(order);
+  if (!weight) {
+    return "";
+  }
+
+  const eventTime = weight >= 80
+    ? (order.purchasedAt || order.createdAt)
+    : order.createdAt;
+  return getLocalDateKey(eventTime);
+}
+
 function getCurrentWeekDates() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const mondayOffset = (today.getDay() + 6) % 7;
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - mondayOffset);
+  const startDate = new Date(today);
+  startDate.setDate(today.getDate() - 6);
 
-  return WEEKDAY_LABELS.map((label, index) => {
-    const date = new Date(monday);
-    date.setDate(monday.getDate() + index);
-    return { date, key: getLocalDateKey(date), label };
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + index);
+    return {
+      date,
+      key: getLocalDateKey(date),
+      label: WEEKDAY_LABELS[(date.getDay() + 6) % 7]
+    };
   });
+}
+
+function createDailySeatStateSeed(hallId, dateKey) {
+  const source = `${DAILY_SEAT_STATE_SEED_VERSION}:${hallId}:${dateKey}`;
+  let hash = 2166136261;
+  for (let index = 0; index < source.length; index += 1) {
+    hash ^= source.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function createSeededHeatRandom(seed) {
+  let value = seed >>> 0;
+  return () => {
+    value += 0x6D2B79F5;
+    let result = value;
+    result = Math.imul(result ^ (result >>> 15), result | 1);
+    result ^= result + Math.imul(result ^ (result >>> 7), result | 61);
+    return ((result ^ (result >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function getDailySeatStatusMap(hall, dateKey) {
+  const statuses = new Map();
+  if (!hall || !dateKey) {
+    return statuses;
+  }
+
+  const random = createSeededHeatRandom(createDailySeatStateSeed(hall.id, dateKey));
+  hall.seats.forEach((seat) => {
+    const seatId = normalizeSeatId(seat);
+    if (!seatId) {
+      return;
+    }
+
+    if (seat.status === "disabled") {
+      statuses.set(seatId, "disabled");
+      return;
+    }
+
+    // Stable random seat states: no centre, weekday, or fixed-region preference is used.
+    const value = random();
+    statuses.set(seatId, value < 0.12 ? "sold" : value < 0.18 ? "reserved" : "available");
+  });
+
+  // Real orders override simulation on the date they were created or purchased.
+  getValidOrdersForHeat()
+    .filter((order) => doesOrderMatchHall(order, hall) && getOrderHeatDateKey(order) === dateKey)
+    .forEach((order) => {
+      const status = getOrderHeatSeatStatus(order);
+      getOrderSeatEntries(order).forEach((entry) => {
+        const seatId = normalizeSeatId(entry);
+        if (!seatId || !statuses.has(seatId)) {
+          return;
+        }
+
+        const previousStatus = statuses.get(seatId);
+        if (getSeatHeatWeight(status) > getSeatHeatWeight(previousStatus)) {
+          statuses.set(seatId, status);
+        }
+      });
+    });
+
+  return statuses;
 }
 
 function getWeeklyHeatData(hall) {
@@ -8251,7 +8394,7 @@ function getWeeklyHeatData(hall) {
       ...day,
       orderCount: orders.length,
       // Canvas de-duplicates status and order heat sources, while the card still exposes that day's purchases.
-      seatCount: heatSources.filter((source) => source.weight >= 80).length,
+      seatCount: heatSources.length,
       dailyPurchaseSeatCount: dailyPurchaseSeatIds.size,
       // The weekly card reuses the same diffusion result as Canvas, not a ticket-count ratio.
       heatScore: influencedScores.length
@@ -8310,47 +8453,59 @@ function getSeatHeatWeight(status) {
   return ["reserved", "booked", "已预订"].includes(normalizedStatus) ? 55 : 0;
 }
 
+function getOrderHeatSeatStatus(order) {
+  const weight = getOrderHeatWeight(order);
+  if (weight >= 80) {
+    return "sold";
+  }
+  return weight > 0 ? "reserved" : "available";
+}
+
 /**
- * 汇总某影厅的全部"热源座位"（带权重）。
-   先扫影厅自身座位状态，再扫所有匹配该厅的有效订单，
-   同一座位取最大权重（购票优先于预订），返回 [{row,col,weight}]。
-   这是 calculateSeatHeat 的输入。
+ * 汇总某影厅的全部“热源座位”。
+   每日初始化、真实座位状态和有效订单先统一为座位状态，同一座位取最高状态，
+   再由 getSeatHeatWeight 产生权重，返回 [{row,col,weight}]。
+   所有座位图都把该结果交给 calculateSeatHeat。
  */
 function getHeatSourceSeats(hall, dateKey = heatPreviewDateKey) {
   const seatMap = buildSeatMap(hall);
-  const sourceWeights = new Map();
-
-  hall.seats.forEach((seat) => {
-    const seatId = normalizeSeatId(seat);
-    const weight = getSeatHeatWeight(seat.status);
-    if (seatId && weight) {
-      sourceWeights.set(seatId, weight);
+  const sourceStatuses = new Map();
+  const addSeatState = (entry, status = entry?.status) => {
+    const seatId = normalizeSeatId(entry);
+    const weight = getSeatHeatWeight(status);
+    if (!seatId || !seatMap.has(seatId) || !weight) {
+      return;
     }
-  });
 
-  getValidOrdersForHeat()
-    .filter((order) => doesOrderMatchHall(order, hall))
-    .filter((order) => !dateKey || getOrderPurchaseDateKey(order) === dateKey)
-    .forEach((order) => {
-      const weight = getOrderHeatWeight(order);
-      getOrderSeatEntries(order).forEach((entry) => {
-        const seatId = normalizeSeatId(entry);
-        if (seatId && seatMap.has(seatId)) {
-          sourceWeights.set(seatId, Math.max(sourceWeights.get(seatId) || 0, weight));
-        }
+    const currentStatus = sourceStatuses.get(seatId);
+    if (weight > getSeatHeatWeight(currentStatus)) {
+      sourceStatuses.set(seatId, status);
+    }
+  };
+
+  if (dateKey) {
+    const dailyStatuses = getDailySeatStatusMap(hall, dateKey);
+    dailyStatuses.forEach((status, seatId) => addSeatState({ seatId }, status));
+  } else {
+    hall.seats.forEach((seat) => addSeatState(seat));
+    getValidOrdersForHeat()
+      .filter((order) => doesOrderMatchHall(order, hall))
+      .forEach((order) => {
+        const orderSeatStatus = getOrderHeatSeatStatus(order);
+        getOrderSeatEntries(order).forEach((entry) => addSeatState(entry, orderSeatStatus));
       });
-    });
+  }
 
-  return [...sourceWeights.entries()]
-    .map(([seatId, weight]) => {
+  return [...sourceStatuses.entries()]
+    .map(([seatId, status]) => {
       const seat = seatMap.get(seatId);
       return {
         row: Number(seat.row),
         col: getSeatColumn(seat),
-        weight
+        weight: getSeatHeatWeight(status)
       };
     })
-    .filter((source) => source.row > 0 && source.col > 0);
+    .filter((source) => source.row > 0 && source.col > 0 && source.weight > 0);
 }
 
 /**
@@ -8581,6 +8736,7 @@ function drawSeats(hall, width, isLoggedIn, palette) {
     ? Math.max(4.5, Math.min(7.5, seatGap * 0.28))
     : 10 * fontScale;
   const seats = [];
+  const dailySeatStatuses = heatPreviewDateKey ? getDailySeatStatusMap(hall, heatPreviewDateKey) : null;
   const heatSources = getHeatSourceSeats(hall); // 本厅热源，复用给所有座位避免重复算
 
   for (let row = 1; row <= rows; row += 1) {
@@ -8601,17 +8757,18 @@ function drawSeats(hall, width, isLoggedIn, palette) {
       const y = rowBaseY + curveStrength * Math.pow(normalized * 2, 2);
       const seatData = hall.seats[(row - 1) * seatsPerRow + index];
       const seatKey = `${seatData.row}-${seatData.number}`;
+      const displayStatus = dailySeatStatuses?.get(seatKey) || seatData.status;
       const isSelected = selectedSeatKeys.includes(seatKey);
       const isRecommended = recommendedSeatKeys.includes(seatKey);
       const isManualSelected = isSelected && !isRecommended; // 选中但非推荐 = 手动改的
       const heatScore = calculateSeatHeat(seatData, hall, heatSources);
       const heatBorderColor = getHeatBorderColor(heatScore);
       // 填充色优先按状态，状态为空座时再看是否选中
-      const fillColor = seatData.status === "sold"
+      const fillColor = displayStatus === "sold"
         ? palette.seatSold
-        : seatData.status === "reserved"
+        : displayStatus === "reserved"
           ? palette.seatReserved
-          : seatData.status === "disabled"
+          : displayStatus === "disabled"
             ? palette.seatDisabled
           : isSelected
             ? palette.seatSelected
@@ -8676,7 +8833,7 @@ function drawSeats(hall, width, isLoggedIn, palette) {
       // 记录坐标和半径，handleCanvasClick 用它做命中检测
       seats.push({
         key: seatKey,
-        status: seatData.status,
+        status: displayStatus,
         x,
         y,
         radius: seatRadius

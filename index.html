@@ -117,7 +117,7 @@ body.mode-large-text .score-card__value {
   font-size: 1.5rem;
 }
 
-/* Keep small labels and fixed-size status text readable in large-text mode. */
+/* 大字体模式下仍保持小标签和固定状态文本清晰可读。 */
 body.mode-large-text .eyebrow,
 body.mode-large-text .panel-heading__tag {
   font-size: 1rem;
@@ -1667,7 +1667,7 @@ button:disabled {
   font-weight: 800;
 }
 
-/* Login is a focused split-screen composition. */
+/* 登录页采用聚焦的左右分栏布局。 */
 .auth-screen {
   display: grid;
   grid-template-columns: minmax(0, 1.24fr) minmax(360px, 0.76fr);
@@ -1796,7 +1796,7 @@ button:disabled {
   font-family: "Cascadia Code", Consolas, monospace;
 }
 
-/* App header stays compact so the task begins above the fold. */
+/* 应用页头保持紧凑，让核心操作尽量位于首屏。 */
 .hero--app {
   grid-template-columns: minmax(0, 1.35fr) minmax(390px, 0.65fr);
   align-items: stretch;
@@ -1853,7 +1853,7 @@ button:disabled {
   min-height: 58px;
 }
 
-/* Three-step task layout. */
+/* 三步任务流程布局。 */
 .workspace {
   grid-template-columns: minmax(380px, 430px) minmax(0, 1fr);
   gap: 18px;
@@ -2187,7 +2187,7 @@ button:disabled {
   border-radius: 12px;
 }
 
-/* Checkout is visually the final decisive step. */
+/* 确认订单在视觉上作为最终的关键操作。 */
 .order-panel {
   margin: 0;
   padding: 0;
@@ -2301,7 +2301,7 @@ button:disabled {
   font-size: 0.79rem;
 }
 
-/* Admin uses the same product system without losing data density. */
+/* 管理员端沿用同一套产品视觉，同时保留足够的信息密度。 */
 .admin-workspace {
   grid-template-columns: minmax(0, 1.45fr) minmax(340px, 0.55fr);
   gap: 18px;
@@ -2329,7 +2329,7 @@ button:disabled {
   scrollbar-color: rgba(111, 231, 255, 0.28) transparent;
 }
 
-/* High-contrast mode retains the refined hierarchy. */
+/* 高对比度模式仍保留清晰的信息层级。 */
 body.mode-high-contrast .hero__copy,
 body.mode-high-contrast .glass-card {
   background: #000;
@@ -2712,7 +2712,7 @@ body.mode-high-contrast .order-card {
     transition-duration: 0.01ms !important;
   }
 }
-/* Large-text mode receives a single-column reading path to prevent crowding. */
+/* 大字体模式使用单列阅读路径，避免内容拥挤。 */
 .score-panel__head h2 {
   margin: 0;
 }
@@ -3605,7 +3605,7 @@ body.mode-high-contrast .seat-guide-card {
   margin: 3px 0 0;
 }
 
-/* Keep legend symbols comfortably readable without crowding the seat map. */
+/* 保持图例符号清晰可读，同时避免挤占座位图空间。 */
 .seat-map-layout {
   grid-template-columns: minmax(0, 1fr) 228px;
 }
@@ -4198,7 +4198,7 @@ select:focus-visible {
     border-radius: 18px;
   }
 }
-/* Checkout hierarchy: purchase is the decisive action, reservation is secondary. */
+/* 确认订单的层级：购票是关键操作，预订为次级操作。 */
 #reserveOrderBtn {
   border: 1px solid rgba(255, 255, 255, 0.14);
   color: #e7e7e3;
@@ -5185,7 +5185,7 @@ body.mode-large-text .order-screen .order-list-heading--history strong {
   font-size: 1.5rem;
 }
 
-/* Large-text sizing and legend density requested for the customer view. */
+/* 用户端大字体尺寸与图例密度控制。 */
 body.mode-large-text {
   font-size: 24px;
 }
@@ -5311,7 +5311,7 @@ body.mode-large-text .admin-legend span {
   }
 }
 
-/* Keep the requested label as the visual reference; all retained copy above uses 1.5rem or more. */
+/* 保留该标签作为视觉基准；上方保留文案均使用 1.5rem 或更大字号。 */
 body.mode-large-text #accessibilityMenuBtn {
   font-size: 1.25rem;
 }
@@ -5417,7 +5417,7 @@ body.mode-large-text #accessibilityMenuBtn {
   }
 }
 
-/* Final mobile overrides: keep authentication first and user controls compact. */
+/* 最终移动端覆盖：登录注册优先，用户控制区保持紧凑。 */
 @media (max-width: 720px) {
   .hero--auth .hero__copy {
     padding: 20px 8px 8px;
@@ -5455,7 +5455,7 @@ body.mode-large-text #accessibilityMenuBtn {
   }
 }
 
-/* Mobile-only task flow. Desktop keeps the original layout unchanged. */
+/* 仅移动端使用任务流程，桌面端保持原有布局不变。 */
 @media (max-width: 720px) {
   #appScreen[data-mobile-flow="seats"] #userAppHeader,
   #appScreen[data-mobile-flow="seats"] .control-panel,
@@ -6421,6 +6421,7 @@ let adminCanvasViewportHallId = "";
 
 bootstrap();
 
+// bootstrap：初始化并连接该功能需要的状态、界面或事件。
 function bootstrap() {
   mountAccessibilityMenu();
   renderAuthSwitch("login");
@@ -6440,6 +6441,7 @@ function bootstrap() {
   renderAdminDashboard();
 }
 
+// bindEvents：初始化并连接该功能需要的状态、界面或事件。
 function bindEvents() {
   dom.authSwitchButtons.forEach((button) => {
     button.addEventListener("click", () => renderAuthSwitch(button.dataset.authView));
@@ -6517,17 +6519,20 @@ function bindEvents() {
   });
 }
 
+// initializeRecommendationUI：初始化并连接该功能需要的状态、界面或事件。
 function initializeRecommendationUI() {
   dom.ticketTypeSelect.value = recommendationDraft.ticketType;
   renderRecommendationForm();
   renderRecommendationState();
 }
 
+// initializeAccessibilityUI：初始化并连接该功能需要的状态、界面或事件。
 function initializeAccessibilityUI() {
   applyAccessibilitySettings();
   renderAccessibilityState();
 }
 
+// handleHeatVisibilityChange：处理相关用户交互，并同步应用状态与界面。
 function handleHeatVisibilityChange(event) {
   isHeatVisible = event.currentTarget.checked;
   renderCurrentHall();
@@ -6724,6 +6729,7 @@ function renderSeatCanvasForCurrentView() {
   renderSeatCanvas(hall, Boolean(currentUser && currentUser.role === "user"));
 }
 
+// mountAccessibilityMenu：初始化并连接该功能需要的状态、界面或事件。
 function mountAccessibilityMenu() {
   const pageShell = document.querySelector(".page-shell");
   if (pageShell && dom.accessibilityMenu.parentElement !== pageShell) {
@@ -6731,6 +6737,7 @@ function mountAccessibilityMenu() {
   }
 }
 
+// positionAccessibilityMenu：封装该功能的独立处理逻辑。
 function positionAccessibilityMenu(trigger) {
   if (!trigger) {
     return;
@@ -6745,12 +6752,14 @@ function positionAccessibilityMenu(trigger) {
   dom.accessibilityMenu.style.setProperty("--accessibility-menu-top", `${Math.round(top)}px`);
 }
 
+// handleAccessibilityMenuToggle：处理相关用户交互，并同步应用状态与界面。
 function handleAccessibilityMenuToggle(event) {
   const trigger = event.currentTarget;
   activeAccessibilityMenuTrigger = trigger;
   setAccessibilityMenuOpen(dom.accessibilityMenu.hidden, false, trigger);
 }
 
+// handleAccessibilityDocumentClick：处理相关用户交互，并同步应用状态与界面。
 function handleAccessibilityDocumentClick(event) {
   if (
     dom.accessibilityMenu.hidden ||
@@ -6763,6 +6772,7 @@ function handleAccessibilityDocumentClick(event) {
   setAccessibilityMenuOpen(false);
 }
 
+// handleAccessibilityDocumentKeyDown：处理相关用户交互，并同步应用状态与界面。
 function handleAccessibilityDocumentKeyDown(event) {
   if (event.key !== "Escape" || dom.accessibilityMenu.hidden) {
     return;
@@ -6772,6 +6782,7 @@ function handleAccessibilityDocumentKeyDown(event) {
   setAccessibilityMenuOpen(false, true);
 }
 
+// setAccessibilityMenuOpen：更新并同步相关状态、数据或界面。
 function setAccessibilityMenuOpen(isOpen, restoreFocus = false, trigger = activeAccessibilityMenuTrigger) {
   if (trigger) {
     activeAccessibilityMenuTrigger = trigger;
@@ -6791,6 +6802,7 @@ function setAccessibilityMenuOpen(isOpen, restoreFocus = false, trigger = active
 }
 
 
+// handleAccessibilityToggle：处理相关用户交互，并同步应用状态与界面。
 function handleAccessibilityToggle(settingKey) {
   accessibilityState = {
     ...accessibilityState,
@@ -6801,6 +6813,7 @@ function handleAccessibilityToggle(settingKey) {
   renderAccessibilityState();
 }
 
+// resetAccessibilitySettings：清除或恢复该功能的默认状态。
 function resetAccessibilitySettings() {
   accessibilityState = createDefaultAccessibilityState();
   localStorage.removeItem(ACCESSIBILITY_STORAGE_KEY);
@@ -6810,6 +6823,7 @@ function resetAccessibilitySettings() {
   renderAccessibilityState();
 }
 
+// handleVoicePurchaseDemo：处理相关用户交互，并同步应用状态与界面。
 function handleVoicePurchaseDemo() {
   if (!accessibilityState.voicePrompt) {
     dom.accessibilityStatus.textContent = "语音提示还未开启。开启后，就可以试听购票完成播报。";
@@ -6820,6 +6834,7 @@ function handleVoicePurchaseDemo() {
   renderAccessibilityState();
 }
 
+// handleOpenOrderPage：处理相关用户交互，并同步应用状态与界面。
 function handleOpenOrderPage() {
   if (!isNormalUser()) {
     return;
@@ -6829,10 +6844,12 @@ function handleOpenOrderPage() {
   setUserSubpage("orders");
 }
 
+// handleReturnToMainPage：处理相关用户交互，并同步应用状态与界面。
 function handleReturnToMainPage() {
   setUserSubpage("main");
 }
 
+// setUserSubpage：更新并同步相关状态、数据或界面。
 function setUserSubpage(pageName, shouldFocus = true) {
   setAccessibilityMenuOpen(false);
   const showingOrders = pageName === "orders";
@@ -6850,6 +6867,7 @@ function setUserSubpage(pageName, shouldFocus = true) {
 }
 
 
+// getOrderDateRestrictionMessage：读取或返回该功能所需的数据与结果。
 function getOrderDateRestrictionMessage() {
   if (!heatPreviewDateKey) {
     return "";
@@ -6864,6 +6882,7 @@ function getOrderDateRestrictionMessage() {
   return `当前查看的是 ${formatHeatDateKey(heatPreviewDateKey)}（${dateType}），仅可查看热度；每天只能预订或购买当天的票。请切换到 ${formatHeatDateKey(todayKey)}。`;
 }
 
+// renderOrderDateAvailability：根据当前状态渲染对应的界面内容。
 function renderOrderDateAvailability() {
   const restrictionMessage = getOrderDateRestrictionMessage();
   const isRestricted = Boolean(restrictionMessage);
@@ -6877,6 +6896,7 @@ function renderOrderDateAvailability() {
   });
 }
 
+// handleCreateOrder：处理相关用户交互，并同步应用状态与界面。
 async function handleCreateOrder(statusCode) {
   const currentUser = getCurrentUser();
   if (!currentUser) {
@@ -6956,7 +6976,7 @@ async function handleCreateOrder(statusCode) {
       statusCode,
       status: getOrderStatusLabel(statusCode),
       createdAt,
-      // The purchase timestamp is used by the weekly heat trend. Reservations do not count as purchase history.
+      // 购票时间用于统计一周热度变化；预订不计入购票历史。
       purchasedAt: statusCode === ORDER_STATUS.purchased ? createdAt : null
     };
 
@@ -6997,6 +7017,7 @@ async function handleCreateOrder(statusCode) {
   }
 }
 
+// validateOrderSelection：校验或评估当前数据是否符合业务规则。
 function validateOrderSelection(hall, draft, selectedSeats) {
   if (selectedSeats.length !== selectedSeatKeys.length || selectedSeats.some((seat) => seat.status !== "available")) {
     return {
@@ -7023,6 +7044,7 @@ function validateOrderSelection(hall, draft, selectedSeats) {
   return { valid: true };
 }
 
+// handleOrderListAction：处理相关用户交互，并同步应用状态与界面。
 function handleOrderListAction(event) {
   const ratingStar = event.target.closest("[data-order-rating]");
   if (ratingStar) {
@@ -7084,6 +7106,7 @@ function handleOrderListAction(event) {
   }
 }
 
+// updateOrderStatus：更新并同步相关状态、数据或界面。
 function updateOrderStatus(order, nextStatusCode) {
   const hall = state.halls[order.hallId];
   const expectedSeatStatus = order.statusCode === ORDER_STATUS.reserved ? "reserved" : "sold";
@@ -7108,6 +7131,7 @@ function updateOrderStatus(order, nextStatusCode) {
   renderAdminDashboard();
 }
 
+// renderOrderCenter：根据当前状态渲染对应的界面内容。
 function renderOrderCenter() {
   const currentUser = getCurrentUser();
   const orders = isNormalUser() && currentUser
@@ -7125,6 +7149,7 @@ function renderOrderCenter() {
     .join("");
 }
 
+// getOrderScoreSummary：读取或返回该功能所需的数据与结果。
 function getOrderScoreSummary(order) {
   const hall = state.halls[order.hallId];
   const selectedSeats = hall
@@ -7165,6 +7190,7 @@ function getOrderScoreSummary(order) {
   };
 }
 
+// buildOrderCardMarkup：创建或组装该功能所需的数据结构或界面内容。
 function buildOrderCardMarkup(order) {
   const statusCode = order.statusCode || getOrderStatusCode(order.status);
   const orderScore = statusCode === ORDER_STATUS.purchased ? getOrderScoreSummary(order) : null;
@@ -7217,6 +7243,7 @@ function buildOrderCardMarkup(order) {
   `;
 }
 
+// setOrderStatus：更新并同步相关状态、数据或界面。
 function setOrderStatus(message, status = "idle") {
   dom.orderStatus.textContent = message;
   dom.orderStatus.className = "score-status order-status";
@@ -7225,14 +7252,17 @@ function setOrderStatus(message, status = "idle") {
   }
 }
 
+// resetOrderStatus：清除或恢复该功能的默认状态。
 function resetOrderStatus() {
   setOrderStatus("填好同行信息并选定座位后，就可以预订或直接购票。");
 }
 
+// createOrderNumber：创建或组装该功能所需的数据结构或界面内容。
 function createOrderNumber() {
   return `SC${Date.now()}${Math.floor(Math.random() * 900 + 100)}`;
 }
 
+// getOrderStatusLabel：读取或返回该功能所需的数据与结果。
 function getOrderStatusLabel(statusCode) {
   const labelMap = {
     [ORDER_STATUS.reserved]: "已预订",
@@ -7243,6 +7273,7 @@ function getOrderStatusLabel(statusCode) {
   return labelMap[statusCode] || "未知状态";
 }
 
+// getOrderStatusCode：读取或返回该功能所需的数据与结果。
 function getOrderStatusCode(status) {
   const statusMap = {
     "已预订": ORDER_STATUS.reserved,
@@ -7253,6 +7284,7 @@ function getOrderStatusCode(status) {
   return statusMap[status] || "";
 }
 
+// formatOrderTime：将数据转换为界面显示或安全输出所需的格式。
 function formatOrderTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -7269,16 +7301,19 @@ function formatOrderTime(value) {
   });
 }
 
+// handlePurchaseSuccessAnnouncement：处理相关用户交互，并同步应用状态与界面。
 function handlePurchaseSuccessAnnouncement() {
   speakMessage("购票成功，祝您观影愉快。");
 }
 
+// applyAccessibilitySettings：更新并同步相关状态、数据或界面。
 function applyAccessibilitySettings() {
   document.body.classList.toggle("mode-large-text", accessibilityState.largeText);
   document.body.classList.toggle("mode-high-contrast", accessibilityState.highContrast);
   document.body.classList.toggle("mode-colorblind", accessibilityState.colorblindFriendly);
 }
 
+// renderAccessibilityState：根据当前状态渲染对应的界面内容。
 function renderAccessibilityState() {
   const toggleMap = [
     [dom.largeTextToggle, accessibilityState.largeText],
@@ -7328,6 +7363,7 @@ function renderAccessibilityState() {
   }
 }
 
+// speakMessage：向用户输出对应的状态提示。
 function speakMessage(message) {
   if (!accessibilityState.voicePrompt || !message || !("speechSynthesis" in window)) {
     return;
@@ -7341,6 +7377,7 @@ function speakMessage(message) {
   window.speechSynthesis.speak(utterance);
 }
 
+// renderAuthSwitch：根据当前状态渲染对应的界面内容。
 function renderAuthSwitch(activeView, options = {}) {
   const { clearMessage = true } = options;
 
@@ -7359,6 +7396,7 @@ function renderAuthSwitch(activeView, options = {}) {
   }
 }
 
+// handleLogin：处理相关用户交互，并同步应用状态与界面。
 function handleLogin(event) {
   event.preventDefault();
   const formData = new FormData(event.currentTarget);
@@ -7391,6 +7429,7 @@ function handleLogin(event) {
   event.currentTarget.reset();
 }
 
+// handleRegister：处理相关用户交互，并同步应用状态与界面。
 function handleRegister(event) {
   event.preventDefault();
   const formData = new FormData(event.currentTarget);
@@ -7447,6 +7486,7 @@ function handleRegister(event) {
   event.currentTarget.reset();
 }
 
+// handleLogout：处理相关用户交互，并同步应用状态与界面。
 function handleLogout() {
   setAccessibilityMenuOpen(false);
   clearCurrentUser();
@@ -7471,6 +7511,7 @@ function handleLogout() {
   dom.registerForm.reset();
 }
 
+// renderHallTabs：根据当前状态渲染对应的界面内容。
 function renderHallTabs() {
   dom.hallTabs.innerHTML = "";
 
@@ -7495,6 +7536,7 @@ function renderHallTabs() {
   });
 }
 
+// renderCurrentHall：根据当前状态渲染对应的界面内容。
 function renderCurrentHall() {
   const hall = state.halls[selectedHallId];
   const currentUser = getCurrentUser();
@@ -7527,6 +7569,7 @@ function renderCurrentHall() {
   }
 }
 
+// renderAdminDashboard：根据当前状态渲染对应的界面内容。
 function renderAdminDashboard() {
   if (!isAdmin()) {
     return;
@@ -7543,6 +7586,7 @@ function renderAdminDashboard() {
   renderAdminUsers();
 }
 
+// renderAdminHallTabs：根据当前状态渲染对应的界面内容。
 function renderAdminHallTabs() {
   if (!dom.adminHallTabs) {
     return;
@@ -7569,6 +7613,7 @@ function renderAdminHallTabs() {
   });
 }
 
+// renderAdminSeatCanvas：根据当前状态渲染对应的界面内容。
 function renderAdminSeatCanvas() {
   if (!adminCtx || !dom.adminCanvas || !isAdmin()) {
     return;
@@ -7671,6 +7716,7 @@ function renderAdminSeatCanvas() {
   }
 }
 
+// handleAdminCanvasPan：处理相关用户交互，并同步应用状态与界面。
 function handleAdminCanvasPan(event) {
   const frame = dom.adminCanvasFrame;
   if (!frame) {
@@ -7692,6 +7738,7 @@ function handleAdminCanvasPan(event) {
   }
 }
 
+// handleAdminSeatCanvasClick：处理相关用户交互，并同步应用状态与界面。
 function handleAdminSeatCanvasClick(event) {
   if (!isAdmin()) {
     setAdminSeatStatus("无管理员权限。", "error");
@@ -7737,6 +7784,7 @@ function handleAdminSeatCanvasClick(event) {
   renderAdminDashboard();
 }
 
+// closeConflictingOrdersForAdminSeat：控制对应界面或功能的显示状态。
 function closeConflictingOrdersForAdminSeat(hall, seatKey, nextStatus) {
   state.orders.forEach((order) => {
     const statusCode = order.statusCode || getOrderStatusCode(order.status);
@@ -7754,6 +7802,7 @@ function closeConflictingOrdersForAdminSeat(hall, seatKey, nextStatus) {
   });
 }
 
+// handleAdminResetHall：处理相关用户交互，并同步应用状态与界面。
 function handleAdminResetHall() {
   if (!isAdmin()) {
     setAdminSeatStatus("无管理员权限。", "error");
@@ -7782,6 +7831,7 @@ function handleAdminResetHall() {
   renderAdminDashboard();
 }
 
+// renderAdminOrders：根据当前状态渲染对应的界面内容。
 function renderAdminOrders() {
   const orders = state.orders;
   dom.adminOrderSummary.textContent = `${orders.length} 笔`;
@@ -7814,6 +7864,7 @@ function renderAdminOrders() {
   }).join("");
 }
 
+// handleAdminOrderAction：处理相关用户交互，并同步应用状态与界面。
 function handleAdminOrderAction(event) {
   const actionButton = event.target.closest("[data-admin-order-action]");
   if (!actionButton || !isAdmin()) {
@@ -7836,6 +7887,7 @@ function handleAdminOrderAction(event) {
   }
 }
 
+// renderAdminUsers：根据当前状态渲染对应的界面内容。
 function renderAdminUsers() {
   const users = state.users.filter((user) => user.role === "user");
   dom.adminUserSummary.textContent = `${users.length} 人`;
@@ -7854,6 +7906,7 @@ function renderAdminUsers() {
   `).join("");
 }
 
+// setAdminSeatStatus：更新并同步相关状态、数据或界面。
 function setAdminSeatStatus(message, status = "idle") {
   dom.adminSeatStatus.textContent = message;
   dom.adminSeatStatus.className = "admin-status";
@@ -7862,6 +7915,7 @@ function setAdminSeatStatus(message, status = "idle") {
   }
 }
 
+// getSeatStatusLabel：读取或返回该功能所需的数据与结果。
 function getSeatStatusLabel(status) {
   const labels = {
     available: "空座",
@@ -7907,11 +7961,13 @@ function renderHeatPanel(hall) {
       : "这里还没有预订或购票记录；产生记录后，外围热度会随之显示。";
 }
 
+// formatHeatDateKey：将数据转换为界面显示或安全输出所需的格式。
 function formatHeatDateKey(dateKey) {
   const [, , month = "", day = ""] = String(dateKey).match(/^(\d{4})-(\d{2})-(\d{2})$/) || [];
   return month && day ? `${Number(month)}月${Number(day)}日` : "所选日期";
 }
 
+// renderHeatTrendModal：根据当前状态渲染对应的界面内容。
 function renderHeatTrendModal() {
   const hall = state.halls[selectedHallId];
   if (!hall || !dom.heatTrendDescription || !dom.heatTrendWeek) {
@@ -7944,6 +8000,7 @@ function renderHeatTrendModal() {
   }).join("");
 }
 
+// openHeatTrendModal：控制对应界面或功能的显示状态。
 function openHeatTrendModal() {
   if (!dom.heatTrendModal) {
     return;
@@ -7954,6 +8011,7 @@ function openHeatTrendModal() {
   window.requestAnimationFrame(() => dom.heatTrendCloseBtn?.focus({ preventScroll: true }));
 }
 
+// closeHeatTrendModal：控制对应界面或功能的显示状态。
 function closeHeatTrendModal() {
   if (!dom.heatTrendModal || dom.heatTrendModal.hidden) {
     return;
@@ -7969,6 +8027,7 @@ function closeHeatTrendModal() {
   window.requestAnimationFrame(() => dom.heatTrendBtn?.focus({ preventScroll: true }));
 }
 
+// handleHeatTrendDayClick：处理相关用户交互，并同步应用状态与界面。
 function handleHeatTrendDayClick(event) {
   const button = event.target.closest("[data-heat-date]");
   if (!button) {
@@ -7977,7 +8036,7 @@ function handleHeatTrendDayClick(event) {
 
   heatPreviewDateKey = button.dataset.heatDate || null;
   const restrictionMessage = getOrderDateRestrictionMessage();
-  // Reuse the main Canvas for the selected day's preview, rather than placing a second heat map in the dialog.
+  // 复用主 Canvas 预览所选日期，避免在弹窗中额外创建第二张热度图。
   dom.heatTrendModal.hidden = true;
   renderCurrentHall();
   setOrderStatus(
@@ -7989,12 +8048,14 @@ function handleHeatTrendDayClick(event) {
   });
 }
 
+// handleHeatTrendDocumentKeyDown：处理相关用户交互，并同步应用状态与界面。
 function handleHeatTrendDocumentKeyDown(event) {
   if (event.key === "Escape" && dom.heatTrendModal && !dom.heatTrendModal.hidden) {
     closeHeatTrendModal();
   }
 }
 
+// buildSelectionSummary：创建或组装该功能所需的数据结构或界面内容。
 function buildSelectionSummary() {
   const isMobile = window.matchMedia("(max-width: 720px)").matches;
   const adjustmentHint = isMobile
@@ -8021,6 +8082,7 @@ function buildSelectionSummary() {
     ? `当前已选 ${selectedSeatKeys.length} 个座位：${seatText}。青色外环是推荐座位，金色外环是你手动调整的座位。${adjustmentHint}`
     : `当前已选 ${selectedSeatKeys.length} 个座位：${seatText}。${adjustmentHint}`;
 }
+// syncScreenState：更新并同步相关状态、数据或界面。
 function syncScreenState() {
   const user = getCurrentUser();
   if (!user) {
@@ -8036,12 +8098,14 @@ function syncScreenState() {
   showUserAppView();
 }
 
+// showLoginView：控制对应界面或功能的显示状态。
 function showLoginView() {
   dom.authScreen.hidden = false;
   dom.appScreen.hidden = true;
   dom.adminScreen.hidden = true;
 }
 
+// showUserAppView：控制对应界面或功能的显示状态。
 function showUserAppView() {
   dom.authScreen.hidden = true;
   dom.appScreen.hidden = false;
@@ -8049,6 +8113,7 @@ function showUserAppView() {
   setUserSubpage("main", false);
 }
 
+// showAdminView：控制对应界面或功能的显示状态。
 function showAdminView() {
   if (!isAdmin()) {
     setAuthMessage("无管理员权限。", "error");
@@ -8092,7 +8157,7 @@ function getSeatColumn(seat) {
 }
 
 /**
- * Heat is expressed only by the outer border. A date without purchase sources must stay blue.
+ * 热度仅通过座位外圈表达；没有购票热源的日期必须保持蓝色边框。
  */
 function getHeatBorderColor(score) {
   if (score >= 80) return "#a855f7"; // 超热门
@@ -8218,7 +8283,7 @@ function getValidOrdersForHeat() {
         orderCollections.push(parsed.orders);
       }
     } catch (error) {
-      // Ignore unrelated or malformed local storage without affecting seat selection.
+      // 忽略无关或格式错误的本地存储数据，避免影响选座。
     }
   });
 
@@ -8260,6 +8325,7 @@ function getOrderHeatWeight(order) {
 
 const WEEKDAY_LABELS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 
+// getLocalDateKey：读取或返回该功能所需的数据与结果。
 function getLocalDateKey(value) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -8272,13 +8338,15 @@ function getLocalDateKey(value) {
   return `${year}-${month}-${day}`;
 }
 
+// getOrderPurchaseDateKey：读取或返回该功能所需的数据与结果。
 function getOrderPurchaseDateKey(order) {
-  // Older purchased orders did not have purchasedAt, so retain their history through createdAt.
+  // 旧版已购票订单没有 purchasedAt 时，使用 createdAt 保留其历史日期。
   return getOrderHeatWeight(order) >= 80
     ? getLocalDateKey(order.purchasedAt || order.createdAt)
     : "";
 }
 
+// getOrderHeatDateKey：读取或返回该功能所需的数据与结果。
 function getOrderHeatDateKey(order) {
   const weight = getOrderHeatWeight(order);
   if (!weight) {
@@ -8291,6 +8359,7 @@ function getOrderHeatDateKey(order) {
   return getLocalDateKey(eventTime);
 }
 
+// getCurrentWeekDates：读取或返回该功能所需的数据与结果。
 function getCurrentWeekDates() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -8308,6 +8377,7 @@ function getCurrentWeekDates() {
   });
 }
 
+// createDailySeatStateSeed：创建或组装该功能所需的数据结构或界面内容。
 function createDailySeatStateSeed(hallId, dateKey) {
   const source = `${DAILY_SEAT_STATE_SEED_VERSION}:${hallId}:${dateKey}`;
   let hash = 2166136261;
@@ -8318,6 +8388,7 @@ function createDailySeatStateSeed(hallId, dateKey) {
   return hash >>> 0;
 }
 
+// createSeededHeatRandom：创建或组装该功能所需的数据结构或界面内容。
 function createSeededHeatRandom(seed) {
   let value = seed >>> 0;
   return () => {
@@ -8329,6 +8400,7 @@ function createSeededHeatRandom(seed) {
   };
 }
 
+// getDailySeatStatusMap：读取或返回该功能所需的数据与结果。
 function getDailySeatStatusMap(hall, dateKey) {
   const statuses = new Map();
   if (!hall || !dateKey) {
@@ -8347,12 +8419,12 @@ function getDailySeatStatusMap(hall, dateKey) {
       return;
     }
 
-    // Stable random seat states: no centre, weekday, or fixed-region preference is used.
+    // 稳定随机座位状态：不使用中心列、星期或固定区域偏好。
     const value = random();
     statuses.set(seatId, value < 0.12 ? "sold" : value < 0.18 ? "reserved" : "available");
   });
 
-  // Real orders override simulation on the date they were created or purchased.
+  // 真实订单会在其创建或购票日期覆盖模拟状态。
   getValidOrdersForHeat()
     .filter((order) => doesOrderMatchHall(order, hall) && getOrderHeatDateKey(order) === dateKey)
     .forEach((order) => {
@@ -8373,6 +8445,7 @@ function getDailySeatStatusMap(hall, dateKey) {
   return statuses;
 }
 
+// getWeeklyHeatData：读取或返回该功能所需的数据与结果。
 function getWeeklyHeatData(hall) {
   const seatMap = buildSeatMap(hall);
   const paidOrders = getValidOrdersForHeat()
@@ -8393,10 +8466,10 @@ function getWeeklyHeatData(hall) {
     return {
       ...day,
       orderCount: orders.length,
-      // Canvas de-duplicates status and order heat sources, while the card still exposes that day's purchases.
+      // Canvas 会对状态和订单热源去重，卡片仍单独展示当天购票数。
       seatCount: heatSources.length,
       dailyPurchaseSeatCount: dailyPurchaseSeatIds.size,
-      // The weekly card reuses the same diffusion result as Canvas, not a ticket-count ratio.
+      // 周热度卡片复用 Canvas 的扩散计算结果，而非简单按购票数量比例计算。
       heatScore: influencedScores.length
         ? Math.round(influencedScores.reduce((total, score) => total + score, 0) / influencedScores.length)
         : 0,
@@ -8453,6 +8526,7 @@ function getSeatHeatWeight(status) {
   return ["reserved", "booked", "已预订"].includes(normalizedStatus) ? 55 : 0;
 }
 
+// getOrderHeatSeatStatus：读取或返回该功能所需的数据与结果。
 function getOrderHeatSeatStatus(order) {
   const weight = getOrderHeatWeight(order);
   if (weight >= 80) {
@@ -8470,6 +8544,7 @@ function getOrderHeatSeatStatus(order) {
 function getHeatSourceSeats(hall, dateKey = heatPreviewDateKey) {
   const seatMap = buildSeatMap(hall);
   const sourceStatuses = new Map();
+  // addSeatState：封装该功能的独立处理逻辑。
   const addSeatState = (entry, status = entry?.status) => {
     const seatId = normalizeSeatId(entry);
     const weight = getSeatHeatWeight(status);
@@ -8983,6 +9058,7 @@ function handleCanvasPointerLeave() {
   }
 }
 
+// applyDragSelection：更新并同步相关状态、数据或界面。
 function applyDragSelection() {
   const previousSelection = [...selectedSeatKeys];
   const rect = getNormalizedDragRect();
@@ -9018,6 +9094,7 @@ function applyDragSelection() {
   return hasSeatSelectionChanged(previousSelection, selectedSeatKeys);
 }
 
+// drawDragSelectionOverlay：在 Canvas 上绘制当前拖拽框选区域的视觉提示。
 function drawDragSelectionOverlay(palette) {
   if (!dragSelection.active || !dragSelection.dragging) {
     return;
@@ -9038,6 +9115,7 @@ function drawDragSelectionOverlay(palette) {
   ctx.restore();
 }
 
+// getNormalizedDragRect：读取或返回该功能所需的数据与结果。
 function getNormalizedDragRect() {
   const width = dragSelection.currentX - dragSelection.startX;
   const height = dragSelection.currentY - dragSelection.startY;
@@ -9061,6 +9139,7 @@ function getNormalizedDragRect() {
   };
 }
 
+// getCanvasPoint：读取或返回该功能所需的数据与结果。
 function getCanvasPoint(event) {
   const rect = dom.canvas.getBoundingClientRect();
   const logicalWidth = parseFloat(dom.canvas.style.width);
@@ -9076,6 +9155,7 @@ function getCanvasPoint(event) {
   };
 }
 
+// toggleSeatSelection：处理相关用户交互，并同步应用状态与界面。
 function toggleSeatSelection(seatKey) {
   if (selectedSeatKeys.includes(seatKey)) {
     selectedSeatKeys = selectedSeatKeys.filter((entry) => entry !== seatKey);
@@ -9085,6 +9165,7 @@ function toggleSeatSelection(seatKey) {
   selectedSeatKeys = [...selectedSeatKeys, seatKey];
 }
 
+// hasSeatSelectionChanged：判断当前数据是否满足对应条件。
 function hasSeatSelectionChanged(previousSelection, nextSelection) {
   if (previousSelection.length !== nextSelection.length) {
     return true;
@@ -9095,6 +9176,7 @@ function hasSeatSelectionChanged(previousSelection, nextSelection) {
   return previousSignature !== nextSignature;
 }
 
+// announceSeatSelectionChange：向用户输出对应的状态提示。
 function announceSeatSelectionChange() {
   if (!selectedSeatKeys.length) {
     speakMessage("已取消当前选座。");
@@ -9106,6 +9188,7 @@ function announceSeatSelectionChange() {
   speakMessage(`当前已选择${selectedSeatKeys.length}个座位：${labels}${moreText}。`);
 }
 
+// handleTicketTypeChange：处理相关用户交互，并同步应用状态与界面。
 function handleTicketTypeChange() {
   const currentDraft = readRecommendationDraftFromDOM();
   const nextType = dom.ticketTypeSelect.value;
@@ -9127,6 +9210,7 @@ function handleTicketTypeChange() {
   renderCurrentHall();
 }
 
+// handleMemberCountInput：处理相关用户交互，并同步应用状态与界面。
 function handleMemberCountInput() {
   const rawValue = dom.memberCountInput.value.trim();
   if (rawValue === "") {
@@ -9142,6 +9226,7 @@ function handleMemberCountInput() {
   handleMemberCountChange();
 }
 
+// handleMemberCountChange：处理相关用户交互，并同步应用状态与界面。
 function handleMemberCountChange() {
   const config = TICKET_TYPE_CONFIG[dom.ticketTypeSelect.value];
   const rawValue = dom.memberCountInput.value.trim();
@@ -9161,11 +9246,13 @@ function handleMemberCountChange() {
   renderCurrentHall();
 }
 
+// handleAudienceInfoChange：处理相关用户交互，并同步应用状态与界面。
 function handleAudienceInfoChange() {
   recommendationDraft = readRecommendationDraftFromDOM();
   renderCurrentHall();
 }
 
+// handleRecommendSeats：处理相关用户交互，并同步应用状态与界面。
 function handleRecommendSeats() {
   const currentUser = getCurrentUser();
   if (!currentUser) {
@@ -9222,6 +9309,7 @@ function handleRecommendSeats() {
   speakMessage(`已经为你们挑好${result.seatKeys.length}个座位。`);
 }
 
+// handleClearRecommendation：处理相关用户交互，并同步应用状态与界面。
 function handleClearRecommendation() {
   const recommendedKeys = new Set(recommendedSeatKeys);
   selectedSeatKeys = selectedSeatKeys.filter((seatKey) => !recommendedKeys.has(seatKey));
@@ -9235,6 +9323,7 @@ function handleClearRecommendation() {
   renderCurrentHall();
 }
 
+// createDefaultRecommendationDraft：创建或组装该功能所需的数据结构或界面内容。
 function createDefaultRecommendationDraft(ticketType) {
   const config = TICKET_TYPE_CONFIG[ticketType];
   const memberCount = config.fixedCount || config.defaultCount;
@@ -9246,6 +9335,7 @@ function createDefaultRecommendationDraft(ticketType) {
   };
 }
 
+// normalizeRecommendationDraft：规范化输入或存储数据，并兼容已有数据结构。
 function normalizeRecommendationDraft(draft) {
   const config = TICKET_TYPE_CONFIG[draft.ticketType];
   const min = config.fixedCount || config.min || config.defaultCount;
@@ -9265,6 +9355,7 @@ function normalizeRecommendationDraft(draft) {
   };
 }
 
+// renderRecommendationForm：根据当前状态渲染对应的界面内容。
 function renderRecommendationForm() {
   recommendationDraft = normalizeRecommendationDraft(recommendationDraft);
   const config = TICKET_TYPE_CONFIG[recommendationDraft.ticketType];
@@ -9292,6 +9383,7 @@ function renderRecommendationForm() {
   );
 }
 
+// buildMemberFieldMarkup：创建或组装该功能所需的数据结构或界面内容。
 function buildMemberFieldMarkup(ticketType, member, index) {
   const memberLabel = getMemberLabel(ticketType, index);
   const namePlaceholder = `${memberLabel}姓名`;
@@ -9322,6 +9414,7 @@ function buildMemberFieldMarkup(ticketType, member, index) {
   `;
 }
 
+// getMemberLabel：读取或返回该功能所需的数据与结果。
 function getMemberLabel(ticketType, index) {
   if (ticketType === "individual") {
     return "\u89c2\u4f17";
@@ -9334,6 +9427,7 @@ function getMemberLabel(ticketType, index) {
   return `\u6210\u5458${index + 1}`;
 }
 
+// readRecommendationDraftFromDOM：读取或返回该功能所需的数据与结果。
 function readRecommendationDraftFromDOM() {
   const ticketType = dom.ticketTypeSelect.value;
   const config = TICKET_TYPE_CONFIG[ticketType];
@@ -9355,6 +9449,7 @@ function readRecommendationDraftFromDOM() {
   });
 }
 
+// createEmptyRecommendationState：创建或组装该功能所需的数据结构或界面内容。
 function createEmptyRecommendationState() {
   return {
     status: "idle",
@@ -9364,6 +9459,7 @@ function createEmptyRecommendationState() {
   };
 }
 
+// clearRecommendation：清除或恢复该功能的默认状态。
 function clearRecommendation(options = {}) {
   const {
     keepSelection = true,
@@ -9383,6 +9479,7 @@ function clearRecommendation(options = {}) {
   renderRecommendationState();
 }
 
+// createEmptyExperienceScoreState：创建或组装该功能所需的数据结构或界面内容。
 function createEmptyExperienceScoreState() {
   return {
     score: null,
@@ -9395,6 +9492,7 @@ function createEmptyExperienceScoreState() {
   };
 }
 
+// updateExperienceScore：更新并同步相关状态、数据或界面。
 function updateExperienceScore(hall) {
   if (!selectedSeatKeys.length) {
     experienceScoreState = createEmptyExperienceScoreState();
@@ -9428,6 +9526,7 @@ function updateExperienceScore(hall) {
   renderExperienceScoreState();
 }
 
+// renderExperienceScoreState：根据当前状态渲染对应的界面内容。
 function renderExperienceScoreState() {
   dom.systemScoreValue.textContent = experienceScoreState.score == null
     ? "-- / 100"
@@ -9449,6 +9548,7 @@ function renderExperienceScoreState() {
     .join("");
 }
 
+// getAudienceContextForScoring：读取或返回该功能所需的数据与结果。
 function getAudienceContextForScoring() {
   const draft = readRecommendationDraftFromDOM();
   const validation = validateRecommendationDraft(draft);
@@ -9466,6 +9566,7 @@ function getAudienceContextForScoring() {
   };
 }
 
+// calculateSystemExperienceScore：计算对应的指标、分值或派生结果。
 function calculateSystemExperienceScore(hall, selectedSeats, audienceContext) {
   const distance = calculateDistanceMetric(hall, selectedSeats);
   const horizontal = calculateHorizontalMetric(hall, selectedSeats);
@@ -9490,6 +9591,7 @@ function calculateSystemExperienceScore(hall, selectedSeats, audienceContext) {
   };
 }
 
+// calculateDistanceMetric：计算对应的指标、分值或派生结果。
 function calculateDistanceMetric(hall, selectedSeats) {
   const idealRow = Math.round(hall.rows * 0.6);
   const averageRow = selectedSeats.reduce((sum, seat) => sum + seat.row, 0) / selectedSeats.length;
@@ -9507,6 +9609,7 @@ function calculateDistanceMetric(hall, selectedSeats) {
   return { score, reason };
 }
 
+// calculateHorizontalMetric：计算对应的指标、分值或派生结果。
 function calculateHorizontalMetric(hall, selectedSeats) {
   const hallCenter = (hall.seatsPerRow + 1) / 2;
   const averageCenterDistance = selectedSeats.reduce((sum, seat) => {
@@ -9525,6 +9628,7 @@ function calculateHorizontalMetric(hall, selectedSeats) {
   return { score, reason };
 }
 
+// calculateSurroundingMetric：计算对应的指标、分值或派生结果。
 function calculateSurroundingMetric(hall, selectedSeats) {
   const seatMap = new Map(hall.seats.map((seat) => [`${seat.row}-${seat.number}`, seat]));
   const selectedSet = new Set(selectedSeats.map((seat) => `${seat.row}-${seat.number}`));
@@ -9565,6 +9669,7 @@ function calculateSurroundingMetric(hall, selectedSeats) {
   return { score, reason };
 }
 
+// calculateRuleMatchMetric：计算对应的指标、分值或派生结果。
 function calculateRuleMatchMetric(hall, selectedSeats, audienceContext) {
   if (!audienceContext.valid) {
     return {
@@ -9602,6 +9707,7 @@ function calculateRuleMatchMetric(hall, selectedSeats, audienceContext) {
   };
 }
 
+// evaluateTicketArrangement：校验或评估当前数据是否符合业务规则。
 function evaluateTicketArrangement(ticketType, selectedSeats) {
   const sortedSeats = [...selectedSeats].sort((left, right) => {
     if (left.row !== right.row) {
@@ -9654,6 +9760,7 @@ function evaluateTicketArrangement(ticketType, selectedSeats) {
   return { issues, penalty };
 }
 
+// isSameRowConsecutive：判断当前数据是否满足对应条件。
 function isSameRowConsecutive(seats) {
   if (!seats.length) {
     return false;
@@ -9673,6 +9780,7 @@ function isSameRowConsecutive(seats) {
   });
 }
 
+// calculateCompositeScore：计算对应的指标、分值或派生结果。
 function calculateCompositeScore(systemScore, userRating) {
   if (!userRating) {
     return systemScore;
@@ -9682,6 +9790,7 @@ function calculateCompositeScore(systemScore, userRating) {
   return clamp(Math.round(systemScore * 0.7 + userScore * 0.3), 0, 100);
 }
 
+// getExperienceGrade：读取或返回该功能所需的数据与结果。
 function getExperienceGrade(score) {
   if (score == null) {
     return "待评估";
@@ -9698,6 +9807,7 @@ function getExperienceGrade(score) {
   return "一般";
 }
 
+// buildScoreMessage：创建或组装该功能所需的数据结构或界面内容。
 function buildScoreMessage(score, audienceContext) {
   const grade = getExperienceGrade(score);
   if (!audienceContext.valid) {
@@ -9707,11 +9817,13 @@ function buildScoreMessage(score, audienceContext) {
   return `座位参考分为 ${score} / 100（${grade}）。购票后可在订单中心留下观影评分。`;
 }
 
+// findSeatByKey：读取或返回该功能所需的数据与结果。
 function findSeatByKey(hall, seatKey) {
   const [row, number] = seatKey.split("-").map(Number);
   return hall.seats.find((seat) => seat.row === row && seat.number === number) || null;
 }
 
+// createEmptyDragSelection：创建或组装该功能所需的数据结构或界面内容。
 function createEmptyDragSelection() {
   return {
     active: false,
@@ -9724,6 +9836,7 @@ function createEmptyDragSelection() {
   };
 }
 
+// renderRecommendationState：根据当前状态渲染对应的界面内容。
 function renderRecommendationState() {
   dom.recommendStatus.textContent = recommendationState.message;
   dom.recommendStatus.className = "recommend-status";
@@ -9742,6 +9855,7 @@ function renderRecommendationState() {
     .join("");
 }
 
+// validateRecommendationDraft：校验或评估当前数据是否符合业务规则。
 function validateRecommendationDraft(draft) {
   const config = TICKET_TYPE_CONFIG[draft.ticketType];
   const normalizedDraft = normalizeRecommendationDraft(draft);
@@ -9792,6 +9906,7 @@ function validateRecommendationDraft(draft) {
   };
 }
 
+// recommendSeatsForHall：封装该功能的独立处理逻辑。
 function recommendSeatsForHall(hall, draft) {
   const audience = draft.members;
   const ticketConfig = TICKET_TYPE_CONFIG[draft.ticketType];
@@ -9847,6 +9962,7 @@ function recommendSeatsForHall(hall, draft) {
   };
 }
 
+// calculateAudienceRestriction：计算对应的指标、分值或派生结果。
 function calculateAudienceRestriction(audience, totalRows) {
   const hasMinor = audience.some((member) => member.age < 15);
   const hasSenior = audience.some((member) => member.age >= 60);
@@ -9859,6 +9975,7 @@ function calculateAudienceRestriction(audience, totalRows) {
   };
 }
 
+// findSeatCandidates：读取或返回该功能所需的数据与结果。
 function findSeatCandidates(hall, ticketType, seatCount, restriction) {
   const candidates = [];
 
@@ -9884,6 +10001,7 @@ function findSeatCandidates(hall, ticketType, seatCount, restriction) {
   return candidates;
 }
 
+// isAvailableSequentialBlock：判断当前数据是否满足对应条件。
 function isAvailableSequentialBlock(seatBlock) {
   return seatBlock.every((seat, index) => {
     if (seat.status !== "available") {
@@ -9898,6 +10016,7 @@ function isAvailableSequentialBlock(seatBlock) {
   });
 }
 
+// scoreSeatBlock：校验或评估当前数据是否符合业务规则。
 function scoreSeatBlock(hall, ticketType, rowSeats, seatBlock, startIndex) {
   const seatCount = seatBlock.length;
   const blockCenter = seatBlock[0].number + (seatCount - 1) / 2;
@@ -9945,6 +10064,7 @@ function scoreSeatBlock(hall, ticketType, rowSeats, seatBlock, startIndex) {
   return score;
 }
 
+// getIdealRowForTicketType：读取或返回该功能所需的数据与结果。
 function getIdealRowForTicketType(ticketType, totalRows) {
   const rowTargets = {
     individual: 0.6,
@@ -9956,6 +10076,7 @@ function getIdealRowForTicketType(ticketType, totalRows) {
   return Math.round(totalRows * rowTargets[ticketType]);
 }
 
+// buildRecommendationReasons：创建或组装该功能所需的数据结构或界面内容。
 function buildRecommendationReasons(hall, ticketType, candidate, restriction) {
   const reasons = [];
   const rowTone = describeRowTone(candidate.row, hall.rows);
@@ -9992,6 +10113,7 @@ function buildRecommendationReasons(hall, ticketType, candidate, restriction) {
   return reasons;
 }
 
+// buildRestrictionReasons：创建或组装该功能所需的数据结构或界面内容。
 function buildRestrictionReasons(ticketType, restriction) {
   const reasons = [];
 
@@ -10018,6 +10140,7 @@ function buildRestrictionReasons(ticketType, restriction) {
   return reasons;
 }
 
+// buildNoSeatMessage：创建或组装该功能所需的数据结构或界面内容。
 function buildNoSeatMessage(hall, ticketLabel, audienceCount, restriction) {
   const ageRuleText = [];
 
@@ -10035,6 +10158,7 @@ function buildNoSeatMessage(hall, ticketLabel, audienceCount, restriction) {
   return `抱歉，${hall.name}暂时没有适合${ticketLabel}${audienceCount}人的${continuityText}座位${ruleSuffix}。可以换个影厅或调整人数，我们再帮你找找。`;
 }
 
+// describeRowTone：将数据转换为界面显示或安全输出所需的格式。
 function describeRowTone(row, totalRows) {
   const ratio = row / totalRows;
 
@@ -10049,6 +10173,7 @@ function describeRowTone(row, totalRows) {
   return "位于中后排区域，更适合多人稳定观影";
 }
 
+// describeCenterTone：将数据转换为界面显示或安全输出所需的格式。
 function describeCenterTone(startSeat, seatCount, seatsPerRow) {
   const blockCenter = startSeat + (seatCount - 1) / 2;
   const horizontalCenter = (seatsPerRow + 1) / 2;
@@ -10065,6 +10190,7 @@ function describeCenterTone(startSeat, seatCount, seatsPerRow) {
   return "位置不在正中心，但优先为同行人保留了连座并满足相应要求。";
 }
 
+// syncCurrentUserUI：更新并同步相关状态、数据或界面。
 function syncCurrentUserUI() {
   const user = getCurrentUser();
   const headerUserName = user ? user.username : "未登录";
@@ -10080,6 +10206,7 @@ function syncCurrentUserUI() {
   dom.adminUserName.textContent = isAdmin() ? (user.displayName || user.username) : "管理员";
 }
 
+// setAuthMessage：更新并同步相关状态、数据或界面。
 function setAuthMessage(message, type) {
   dom.authMessage.textContent = message;
   dom.authMessage.className = "auth-message";
@@ -10088,11 +10215,13 @@ function setAuthMessage(message, type) {
   }
 }
 
+// formatSeatLabel：将数据转换为界面显示或安全输出所需的格式。
 function formatSeatLabel(seatKey) {
   const [row, seatNumber] = seatKey.split("-");
   return `${row}排${seatNumber}座`;
 }
 
+// getCurrentUser：读取或返回该功能所需的数据与结果。
 function getCurrentUser() {
   const session = readCurrentUserSession();
   const sessionUser = session
@@ -10102,20 +10231,24 @@ function getCurrentUser() {
   return sessionUser && !sessionUser.disabled ? sessionUser : null;
 }
 
+// isAdmin：判断当前数据是否满足对应条件。
 function isAdmin() {
   const user = getCurrentUser();
   return Boolean(user && user.role === "admin");
 }
 
+// isNormalUser：判断当前数据是否满足对应条件。
 function isNormalUser() {
   const user = getCurrentUser();
   return Boolean(user && user.role === "user");
 }
 
+// setCurrentUser：更新并同步相关状态、数据或界面。
 function setCurrentUser(user) {
   persistCurrentUserSession(user);
 }
 
+// clearCurrentUser：清除或恢复该功能的默认状态。
 function clearCurrentUser() {
   try {
     sessionStorage.removeItem(TAB_SESSION_STORAGE_KEY);
@@ -10125,6 +10258,7 @@ function clearCurrentUser() {
   delete window.__smartCinemaTabSession;
 }
 
+// persistCurrentUserSession：读取或持久化该功能的数据。
 function persistCurrentUserSession(user) {
   const session = {
     id: user.id,
@@ -10141,6 +10275,7 @@ function persistCurrentUserSession(user) {
   }
 }
 
+// readCurrentUserSession：读取或返回该功能所需的数据与结果。
 function readCurrentUserSession() {
   try {
     const saved = sessionStorage.getItem(TAB_SESSION_STORAGE_KEY);
@@ -10150,10 +10285,12 @@ function readCurrentUserSession() {
   }
 }
 
+// roleLabel：封装该功能的独立处理逻辑。
 function roleLabel(role) {
   return role === "admin" ? "管理员" : "普通会员";
 }
 
+// loadState：读取或持久化该功能的数据。
 function loadState() {
   const storedState = readStoredState();
   if (!storedState) {
@@ -10165,6 +10302,7 @@ function loadState() {
   return storedState;
 }
 
+// readStoredState：读取或返回该功能所需的数据与结果。
 function readStoredState() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -10178,6 +10316,7 @@ function readStoredState() {
   }
 }
 
+// normalizeState：规范化输入或存储数据，并兼容已有数据结构。
 function normalizeState(savedState) {
   const normalizedOrders = Array.isArray(savedState.orders)
     ? savedState.orders.map((order) => {
@@ -10218,7 +10357,7 @@ function normalizeState(savedState) {
 
             return {
               ...seat,
-              // Backfill old demonstration sold seats so historical heat does not lose its source date.
+              // 为旧演示已售座位补充日期，避免历史热度丢失热源时间。
               purchasedAt: purchaseTimeBySeat.get(`${hallId}:${seatId}`)
                 || getDemoSeatPurchasedAt(seat.row, seat.number, hallId)
             };
@@ -10236,6 +10375,7 @@ function normalizeState(savedState) {
   };
 }
 
+// saveState：读取或持久化该功能的数据。
 function saveState(reason = "影院数据已更新") {
   state.users = state.users.map(normalizeUser);
   state.currentUserId = null;
@@ -10261,11 +10401,13 @@ function saveState(reason = "影院数据已更新") {
   publishRealtimeUpdate(reason);
 }
 
+// persistStateLocally：读取或持久化该功能的数据。
 function persistStateLocally() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(state.users));
 }
 
+// initializeUserData：初始化并连接该功能需要的状态、界面或事件。
 function initializeUserData() {
   const storedUsers = readStoredUsers();
   state.users = mergeUsers(state.users, storedUsers);
@@ -10274,6 +10416,7 @@ function initializeUserData() {
   saveState("用户数据已初始化");
 }
 
+// migrateLegacyCurrentUserSession：封装该功能的独立处理逻辑。
 function migrateLegacyCurrentUserSession() {
   if (readCurrentUserSession()) {
     state.currentUserId = null;
@@ -10298,6 +10441,7 @@ function migrateLegacyCurrentUserSession() {
   localStorage.removeItem(CURRENT_USER_STORAGE_KEY);
 }
 
+// getOrCreateRealtimeTabId：读取或返回该功能所需的数据与结果。
 function getOrCreateRealtimeTabId() {
   try {
     const existingId = sessionStorage.getItem(TAB_ID_STORAGE_KEY);
@@ -10313,6 +10457,7 @@ function getOrCreateRealtimeTabId() {
   }
 }
 
+// initializeRealtimeSync：初始化并连接该功能需要的状态、界面或事件。
 function initializeRealtimeSync() {
   window.addEventListener("storage", (event) => {
     if (event.key === STORAGE_KEY && event.newValue) {
@@ -10332,6 +10477,7 @@ function initializeRealtimeSync() {
   renderRealtimeStatus();
 }
 
+// publishRealtimeUpdate：发起对应的同步、提交或异步操作。
 function publishRealtimeUpdate(reason) {
   if (!realtimeChannel || hasWebSocketConnection()) {
     return;
@@ -10345,11 +10491,13 @@ function publishRealtimeUpdate(reason) {
   });
 }
 
+// syncStateFromSharedStorage：更新并同步相关状态、数据或界面。
 function syncStateFromSharedStorage(message) {
   const storedState = readStoredState();
   applySynchronizedState(storedState, message, false);
 }
 
+// clearInvalidSelectedSeats：清除或恢复该功能的默认状态。
 function clearInvalidSelectedSeats() {
   const hall = state.halls[selectedHallId];
   if (!hall) {
@@ -10366,6 +10514,7 @@ function clearInvalidSelectedSeats() {
   return unavailableSelectedSeats;
 }
 
+// renderRealtimeStatus：根据当前状态渲染对应的界面内容。
 function renderRealtimeStatus(message = getDefaultRealtimeStatus()) {
   dom.realtimeStatuses.forEach((element) => {
     element.textContent = message;
@@ -10373,7 +10522,9 @@ function renderRealtimeStatus(message = getDefaultRealtimeStatus()) {
   });
 }
 
+// runSeatStateTransaction：执行对应的业务流程或事务。
 async function runSeatStateTransaction(mutate) {
+  // performTransaction：封装该功能的独立处理逻辑。
   const performTransaction = async () => {
     const storedState = readStoredState();
     if (!storedState) {
@@ -10409,6 +10560,7 @@ async function runSeatStateTransaction(mutate) {
   return performTransaction();
 }
 
+// initializeWebSocketSync：初始化并连接该功能需要的状态、界面或事件。
 function initializeWebSocketSync() {
   const websocketUrl = getWebSocketUrl();
   if (!websocketUrl) {
@@ -10419,6 +10571,7 @@ function initializeWebSocketSync() {
   connectWebSocket(websocketUrl);
 }
 
+// getWebSocketUrl：读取或返回该功能所需的数据与结果。
 function getWebSocketUrl() {
   if (typeof WebSocket !== "function" || window.location.protocol === "file:") {
     return null;
@@ -10428,6 +10581,7 @@ function getWebSocketUrl() {
   return `${protocol}//${window.location.host}${WEBSOCKET_PATH}`;
 }
 
+// connectWebSocket：初始化并连接该功能需要的状态、界面或事件。
 function connectWebSocket(websocketUrl) {
   try {
     websocket = new WebSocket(websocketUrl);
@@ -10466,6 +10620,7 @@ function connectWebSocket(websocketUrl) {
   });
 }
 
+// scheduleWebSocketReconnect：发起对应的同步、提交或异步操作。
 function scheduleWebSocketReconnect(websocketUrl) {
   if (websocketReconnectTimer || window.location.protocol === "file:") {
     return;
@@ -10479,10 +10634,12 @@ function scheduleWebSocketReconnect(websocketUrl) {
   }, delay);
 }
 
+// hasWebSocketConnection：判断当前数据是否满足对应条件。
 function hasWebSocketConnection() {
   return Boolean(websocket && websocket.readyState === WebSocket.OPEN);
 }
 
+// sendWebSocketMessage：发起对应的同步、提交或异步操作。
 function sendWebSocketMessage(message) {
   if (!hasWebSocketConnection()) {
     return false;
@@ -10492,10 +10649,12 @@ function sendWebSocketMessage(message) {
   return true;
 }
 
+// createStateSnapshot：创建或组装该功能所需的数据结构或界面内容。
 function createStateSnapshot() {
   return JSON.parse(JSON.stringify(state));
 }
 
+// submitStateToServer：发起对应的同步、提交或异步操作。
 function submitStateToServer(reason) {
   if (!hasWebSocketConnection()) {
     persistStateLocally();
@@ -10530,6 +10689,7 @@ function submitStateToServer(reason) {
   });
 }
 
+// handleWebSocketMessage：处理相关用户交互，并同步应用状态与界面。
 function handleWebSocketMessage(message) {
   if (!message || typeof message !== "object") {
     return;
@@ -10557,6 +10717,7 @@ function handleWebSocketMessage(message) {
   }
 }
 
+// applySynchronizedState：更新并同步相关状态、数据或界面。
 function applySynchronizedState(nextState, message, shouldPersist, force = false) {
   if (!nextState) {
     return false;
@@ -10590,12 +10751,14 @@ function applySynchronizedState(nextState, message, shouldPersist, force = false
   return true;
 }
 
+// getDefaultRealtimeStatus：读取或返回该功能所需的数据与结果。
 function getDefaultRealtimeStatus() {
   return hasWebSocketConnection()
     ? "WebSocket 实时同步已连接"
     : "本地多标签页同步已连接（WebSocket 未启动）";
 }
 
+// readStoredUsers：读取或返回该功能所需的数据与结果。
 function readStoredUsers() {
   try {
     const saved = localStorage.getItem(USER_STORAGE_KEY);
@@ -10606,6 +10769,7 @@ function readStoredUsers() {
   }
 }
 
+// mergeUsers：封装该功能的独立处理逻辑。
 function mergeUsers(...collections) {
   const usersByUsername = new Map();
 
@@ -10621,6 +10785,7 @@ function mergeUsers(...collections) {
   return [...usersByUsername.values()];
 }
 
+// normalizeUser：规范化输入或存储数据，并兼容已有数据结构。
 function normalizeUser(user) {
   const username = String(user?.username || "").trim();
   const role = user?.role === "admin" ? "admin" : "user";
@@ -10641,6 +10806,7 @@ function normalizeUser(user) {
   };
 }
 
+// initDefaultAdmin：初始化并连接该功能需要的状态、界面或事件。
 function initDefaultAdmin() {
   const adminUser = state.users.find((user) => user.username.toLowerCase() === "admin");
   if (adminUser && adminUser.role === "admin") {
@@ -10671,6 +10837,7 @@ function initDefaultAdmin() {
   });
 }
 
+// loadAccessibilityState：读取或持久化该功能的数据。
 function loadAccessibilityState() {
   const saved = localStorage.getItem(ACCESSIBILITY_STORAGE_KEY);
 
@@ -10688,10 +10855,12 @@ function loadAccessibilityState() {
   }
 }
 
+// saveAccessibilityState：读取或持久化该功能的数据。
 function saveAccessibilityState() {
   localStorage.setItem(ACCESSIBILITY_STORAGE_KEY, JSON.stringify(accessibilityState));
 }
 
+// createDefaultAccessibilityState：创建或组装该功能所需的数据结构或界面内容。
 function createDefaultAccessibilityState() {
   return {
     largeText: false,
@@ -10701,6 +10870,7 @@ function createDefaultAccessibilityState() {
   };
 }
 
+// createInitialState：创建或组装该功能所需的数据结构或界面内容。
 function createInitialState() {
   return {
     currentUserId: null,
@@ -10739,7 +10909,7 @@ function buildSeats(rows, seatsPerRow, hallId) {
         number,
         // 命中预设图案的记为已售，其余为空座
         status: isSold ? "sold" : "available",
-        // Demonstration sold seats are assigned a deterministic day in the current week for the weekly heat preview.
+        // 演示用已售座位分配到本周固定日期，便于预览一周热度变化。
         purchasedAt: isSold ? getDemoSeatPurchasedAt(row, number, hallId) : null
       });
     }
@@ -10748,6 +10918,7 @@ function buildSeats(rows, seatsPerRow, hallId) {
   return seats;
 }
 
+// getDemoSeatPurchasedAt：读取或返回该功能所需的数据与结果。
 function getDemoSeatPurchasedAt(row, number, hallId) {
   const today = new Date();
   today.setHours(12, 0, 0, 0);
@@ -10776,10 +10947,12 @@ function soldPatternByHall(hallId) {
   return new Set(patterns[hallId] || []);
 }
 
+// clamp：封装该功能的独立处理逻辑。
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+// escapeHtml：将数据转换为界面显示或安全输出所需的格式。
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, "&amp;")
@@ -10788,7 +10961,7 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
-/* Mobile-only flow controller. It reuses the existing desktop seat, order, and recommendation logic. */
+/* 移动端流程控制器，复用现有桌面端的选座、订单和推荐逻辑。 */
 (() => {
   const app = document.getElementById("appScreen");
   const flowUi = document.getElementById("mobileFlowUi");
@@ -10850,17 +11023,20 @@ function escapeHtml(value) {
 
   const seatSidebarDetails = [...document.querySelectorAll(".seat-map-sidebar details")];
 
+  // syncSeatSidebarDetails：同步移动端与桌面端侧栏的折叠状态。
   function syncSeatSidebarDetails() {
-    // The same markup is collapsible on mobile, but always expanded in the desktop sidebar.
+    // 同一份侧栏标记在移动端可折叠，在桌面端始终展开。
     seatSidebarDetails.forEach((details) => {
       details.open = !isMobile();
     });
   }
 
+  // isMobile：判断当前视口是否处于移动端布局。
   function isMobile() {
     return mobileQuery.matches;
   }
 
+  // setStep：切换移动端流程步骤并重新渲染页面。
   function setStep(step, mode = flow.mode) {
     flow.step = step;
     flow.mode = mode;
@@ -10868,6 +11044,7 @@ function escapeHtml(value) {
     if (isMobile()) window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  // renderHallTabs：渲染移动端影厅切换按钮。
   function renderHallTabs() {
     mobileHallTabs.innerHTML = "";
     hallsConfig.forEach((hall) => {
@@ -10883,10 +11060,11 @@ function escapeHtml(value) {
     });
   }
 
+  // syncRecommendationPanelLocation：在移动端抽屉和桌面端原位置之间移动选座信息面板。
   function syncRecommendationPanelLocation() {
     if (!recommendationPanel) return;
     if (isMobile()) {
-      // 输入过程中不要重复 append 同一个节点，否则会丢失焦点并收起手机键盘。
+      // 输入过程中不重复插入同一节点，避免丢失焦点并收起手机键盘。
       if (recommendationPanel.parentElement !== recommendationDrawer) {
         recommendationDrawer.append(recommendationPanel);
       }
@@ -10897,6 +11075,7 @@ function escapeHtml(value) {
     }
   }
 
+  // syncExperienceScorePanelLocation：在移动端确认订单区域和桌面端原位置之间移动评分面板。
   function syncExperienceScorePanelLocation() {
     if (!experienceScorePanel || !checkoutPanel) {
       return;
@@ -10914,6 +11093,7 @@ function escapeHtml(value) {
     }
   }
 
+  // openRecommendationDrawer：打开移动端选座信息抽屉并同步其高度。
   function openRecommendationDrawer() {
     flow.mode = "info";
     syncRecommendationPanelLocation();
@@ -10922,11 +11102,13 @@ function escapeHtml(value) {
     syncDrawerToVisualViewport();
   }
 
+  // closeRecommendationDrawer：关闭移动端选座信息抽屉并恢复页面滚动。
   function closeRecommendationDrawer() {
     recommendationDrawer.hidden = true;
     document.body.style.overflow = "";
   }
 
+  // syncDrawerToVisualViewport：根据可视视口高度处理移动端键盘顶起抽屉的问题。
   function syncDrawerToVisualViewport() {
     if (!isMobile() || !window.visualViewport) {
       return;
@@ -10938,17 +11120,20 @@ function escapeHtml(value) {
     app.style.setProperty("--mobile-drawer-height", `${Math.round(viewport.height)}px`);
   }
 
+  // focusFirstIncompleteAudienceField：定位到第一个未填写的观众信息输入框。
   function focusFirstIncompleteAudienceField() {
     const firstIncomplete = [...dom.memberFields.querySelectorAll("input")]
       .find((input) => !input.value.trim());
     window.requestAnimationFrame(() => firstIncomplete?.focus({ preventScroll: true }));
   }
 
+  // getMobileSelectionInfoCheck：读取并校验移动端当前填写的选座信息。
   function getMobileSelectionInfoCheck() {
     recommendationDraft = readRecommendationDraftFromDOM();
     return validateRecommendationDraft(recommendationDraft);
   }
 
+  // render：根据当前流程、选座和观众信息刷新移动端界面。
   function render() {
     const seatCount = selectedSeatKeys.length;
     const hall = state.halls[selectedHallId];
